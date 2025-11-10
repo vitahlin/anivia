@@ -1,8 +1,3 @@
--- =====================================================
--- Zilean Notion Page - 简化数据库表创建
--- =====================================================
--- 在 Supabase 项目的 SQL Editor 中执行此脚本
-
 -- 创建主表：zilean_notion_page
 CREATE TABLE IF NOT EXISTS zilean_notion_page (
   id BIGSERIAL PRIMARY KEY,
