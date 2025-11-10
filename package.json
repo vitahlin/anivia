@@ -5,8 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "start": "bun run dist/server.js",
+    "dev": "ts-node src/server.js",
     "sync": "npm run build && node dist/index.js sync",
     "export": "npm run build && node dist/index.js export",
     "check-notion": "npm run build && node dist/index.js check-notion",
