@@ -9,24 +9,9 @@ import * as path from 'path';
 
 const app = express();
 const PORT = process.env.API_PORT || 3000;
-const API_KEY = process.env.API_KEY || 'your-secret-api-key';
 
 // Middleware
 app.use(express.json());
-
-// API Key 验证中间件
-const authenticateApiKey = (req: Request, res: Response, next: NextFunction) => {
-  const apiKey = req.headers['x-api-key'] || req.query.api_key;
-  
-  if (apiKey !== API_KEY) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized: Invalid API key'
-    });
-  }
-  
-  next();
-};
 
 // 从 URL 或 ID 中提取 page ID
 function extractPageId(input: string): string {
@@ -64,7 +49,7 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// API 信息端点（不需要 API key）
+// API 信息端点
 app.get('/', (req: Request, res: Response) => {
   res.json({
     service: 'Notion Upload API',
@@ -75,13 +60,12 @@ app.get('/', (req: Request, res: Response) => {
       'GET /check/notion': 'Check Notion API configuration',
       'GET /check/db': 'Check Supabase database configuration',
       'GET /health': 'Health check endpoint'
-    },
-    authentication: 'Required: x-api-key header or api_key query parameter'
+    }
   });
 });
 
 // 同步 Notion 页面
-app.get('/sync', authenticateApiKey, async (req: Request, res: Response) => {
+app.get('/sync', async (req: Request, res: Response) => {
   try {
     const pageIdOrUrl = req.query.pageId as string;
     const verbose = req.query.verbose === 'true';
@@ -127,7 +111,7 @@ app.get('/sync', authenticateApiKey, async (req: Request, res: Response) => {
 });
 
 // 导出所有文章
-app.post('/export', authenticateApiKey, async (req: Request, res: Response) => {
+app.post('/export', async (req: Request, res: Response) => {
   try {
     const {
       outputDir = '/app/exported-posts',
@@ -168,7 +152,7 @@ app.post('/export', authenticateApiKey, async (req: Request, res: Response) => {
 });
 
 // 检查 Notion 配置
-app.get('/check/notion', authenticateApiKey, async (req: Request, res: Response) => {
+app.get('/check/notion', async (req: Request, res: Response) => {
   try {
     const config = getConfig();
     const logger = new Logger(config.logLevel);
@@ -188,7 +172,7 @@ app.get('/check/notion', authenticateApiKey, async (req: Request, res: Response)
 });
 
 // 检查数据库配置
-app.get('/check/db', authenticateApiKey, async (req: Request, res: Response) => {
+app.get('/check/db', async (req: Request, res: Response) => {
   try {
     const config = getConfig();
     const logger = new Logger(config.logLevel);
@@ -221,7 +205,6 @@ app.listen(PORT, () => {
   console.log(`🚀 Notion Upload API server is running on port ${PORT}`);
   console.log(`📝 API Documentation: http://localhost:${PORT}/`);
   console.log(`💚 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔑 API Key required for protected endpoints`);
 });
 
 export default app;
