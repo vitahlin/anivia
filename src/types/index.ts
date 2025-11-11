@@ -76,4 +76,5 @@ export interface SyncResult {
   message: string;
   imagesProcessed: number;
   errors?: string[];
+  skipped?: boolean;
 }

@@ -37,15 +37,8 @@ export class NotionService {
     const featuredImg = this.extractFeaturedImg(page);
     const galleryImgs = this.extractGallery(page);
 
-    this.logger.info(`📋 页面信息解析完成:`);
-    this.logger.info(`   - 标题: ${title}`);
-    this.logger.info(`   - 处理人: ${handler || '无'}`);
-    this.logger.info(`   - 发布状态: ${published ? '已发布' : '未发布'}`);
-    this.logger.info(`   - 分类: ${categories.length > 0 ? categories.join(', ') : '无分类'}`);
-    this.logger.info(`   - 标签: ${tags.length > 0 ? tags.join(', ') : '无标签'}`);
-    this.logger.info(`   - 摘要: ${excerpt ? excerpt.substring(0, 50) + '...' : '无摘要'}`);
-    this.logger.info(`   - 配图: ${featuredImg || '无配图'}`);
-    this.logger.info(`   - 组图: ${galleryImgs.length} 张`);
+    this.logger.info(`页面信息解析完成:`);
+    this.logger.info(`   - ID: ${pageId}`);
     this.logger.info(`   - 创建时间: ${createdTime}`);
     this.logger.info(`   - 最后编辑: ${lastEditedTime}`);
 

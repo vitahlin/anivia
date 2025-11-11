@@ -32,6 +32,32 @@ export class SyncService {
     this.logger.info(`开始同步页面: ${pageId}`);
     let imagesProcessed = 0;
 
+    // Step 0: 检查是否需要更新
+    const cleanPageId = pageId.replace(/-/g, '');
+    const existingPage = await this.supabaseService.getPageById(cleanPageId);
+
+    if (existingPage) {
+      // 获取 Notion 页面的最后编辑时间
+      const pageData = await this.notionService.getPageData(pageId);
+      const notionLastEdited = new Date(pageData.lastEditedTime);
+      const supabaseLastEdited = new Date(existingPage.last_edited_time);
+
+      if (notionLastEdited.getTime() <= supabaseLastEdited.getTime()) {
+        this.logger.info(`⏭️  页面未更新，跳过同步 (Notion: ${pageData.lastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
+        return {
+          success: true,
+          pageId,
+          message: '页面未更新，跳过同步',
+          imagesProcessed: 0,
+          skipped: true
+        };
+      }
+
+      this.logger.info(`🔄 页面已更新，继续同步 (Notion: ${pageData.lastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
+    } else {
+      this.logger.info(`🆕 新页面，继续同步`);
+    }
+
     // Step 1: 获取 Notion 页面数据
     this.logger.info('Step 1: 获取 Notion 页面数据...');
     const pageData: NotionPageData = await this.notionService.getPageData(pageId);

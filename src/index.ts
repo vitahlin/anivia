@@ -348,7 +348,7 @@ program
   });
 
 program
-  .command('query-database-updated-page')
+  .command('query-updated-page')
   .description('Query pages updated in a time range from Notion database')
   .argument('<databaseId>', 'Notion database ID')
   .argument('<startTime>', 'Start time in format yyyyMMddHHmmss')
@@ -399,6 +399,119 @@ program
 
     } catch (error) {
       console.error('❌ 查询失败:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('sync-updated-page')
+  .description('Query and sync pages updated in a time range from Notion database to Supabase')
+  .argument('<databaseId>', 'Notion database ID')
+  .argument('<startTime>', 'Start time in format yyyyMMddHHmmss')
+  .argument('<endTime>', 'End time in format yyyyMMddHHmmss')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (databaseId: string, startTime: string, endTime: string, options) => {
+    try {
+      const config = getConfig();
+      const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
+
+      const parseTime = (timeStr: string): Date => {
+        const year = parseInt(timeStr.substring(0, 4));
+        const month = parseInt(timeStr.substring(4, 6)) - 1;
+        const day = parseInt(timeStr.substring(6, 8));
+        const hour = parseInt(timeStr.substring(8, 10));
+        const minute = parseInt(timeStr.substring(10, 12));
+        const second = parseInt(timeStr.substring(12, 14));
+        return new Date(year, month, day, hour, minute, second);
+      };
+
+      const start = parseTime(startTime);
+      const end = parseTime(endTime);
+
+      logger.info('🔍 查询并同步更新的页面...');
+      logger.info(`📊 数据库 ID: ${databaseId}`);
+      logger.info(`⏰ 开始时间: ${start.toISOString()}`);
+      logger.info(`⏰ 结束时间: ${end.toISOString()}`);
+
+      const notionService = new NotionService(config.notion, logger);
+      const pages = await notionService.queryDatabaseByTimeRange(
+        databaseId,
+        start.toISOString(),
+        end.toISOString()
+      );
+
+      logger.info('');
+      logger.info(`✅ 找到 ${pages.length} 个更新的页面`);
+
+      if (pages.length === 0) {
+        logger.info('没有需要同步的页面');
+        return;
+      }
+
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      logger.info('🚀 开始同步页面到 Supabase...');
+      logger.info('');
+
+      const syncService = new SyncService(config, logger);
+      let successCount = 0;
+      let skippedCount = 0;
+      let failCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        logger.info(`[${i + 1}/${pages.length}] 同步: ${page.title || '(无标题)'}`);
+        logger.info(`   ID: ${page.id}`);
+
+        try {
+          const result = await syncService.syncPage(page.id);
+          if (result.success) {
+            if (result.skipped) {
+              skippedCount++;
+              logger.info(`   ⏭️  跳过 (未更新)`);
+            } else {
+              successCount++;
+              logger.info(`   ✅ 成功 (处理 ${result.imagesProcessed} 张图片)`);
+            }
+          } else {
+            failCount++;
+            const errorMsg = `${page.title || page.id}: ${result.message}`;
+            errors.push(errorMsg);
+            logger.error(`   ❌ 失败: ${result.message}`);
+          }
+        } catch (error: any) {
+          failCount++;
+          const errorMsg = `${page.title || page.id}: ${error.message}`;
+          errors.push(errorMsg);
+          logger.error(`   ❌ 异常: ${error.message}`);
+        }
+
+        logger.info('');
+      }
+
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      logger.info('📊 同步完成统计:');
+      logger.info(`   总计: ${pages.length} 个页面`);
+      logger.info(`   ✅ 成功: ${successCount}`);
+      logger.info(`   ⏭️  跳过: ${skippedCount}`);
+      logger.info(`   ❌ 失败: ${failCount}`);
+
+      if (errors.length > 0) {
+        logger.info('');
+        logger.info('失败详情:');
+        errors.forEach((error, index) => {
+          logger.error(`   ${index + 1}. ${error}`);
+        });
+      }
+
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      if (failCount > 0) {
+        process.exit(1);
+      }
+
+    } catch (error) {
+      console.error('❌ 同步失败:', error);
       process.exit(1);
     }
   });

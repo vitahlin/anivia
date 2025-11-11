@@ -14,11 +14,14 @@ export class SupabaseService {
 
   async syncPageData(pageData: NotionPageData): Promise<void> {
     try {
+      // Remove dashes from page ID
+      const cleanPageId = pageData.id.replace(/-/g, '');
+
       // Check if page already exists
-      const existingPage = await this.getPageById(pageData.id);
+      const existingPage = await this.getPageById(cleanPageId);
 
       const record: Partial<SupabasePageRecord> = {
-        notion_page_id: pageData.id,
+        notion_page_id: cleanPageId,
         title: pageData.title,
         content: pageData.content,
         created_time: pageData.createdTime,
@@ -48,7 +51,7 @@ export class SupabaseService {
     }
   }
 
-  private async getPageById(notionPageId: string): Promise<SupabasePageRecord | null> {
+  async getPageById(notionPageId: string): Promise<SupabasePageRecord | null> {
     try {
       const { data, error } = await this.client
         .from(this.tableName)
