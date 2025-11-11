@@ -42,6 +42,9 @@ function extractPageId(input: string): string {
 
 // 健康检查端点（不需要 API key）
 app.get('/health', (req: Request, res: Response) => {
+  const config = getConfig();
+  const logger = new Logger(config.logLevel);
+  logger.info(`receive health`)
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -112,7 +115,10 @@ app.get('/sync', async (req: Request, res: Response) => {
 });
 
 // Notion Webhook 端点
-app.post('/webhook/notion/pageCreate', async (req: Request, res: Response) => {
+app.post('/webhook/notion/pageUpdate', async (req: Request, res: Response) => {
+  const config = getConfig();
+  const logger = new Logger(config.logLevel);
+  logger.info(`receive notion pageUpdate webhook content: ${req.body.data}`)
   try {
     // 验证请求体结构
     if (!req.body || !req.body.data || !req.body.data.id) {
@@ -121,12 +127,8 @@ app.post('/webhook/notion/pageCreate', async (req: Request, res: Response) => {
         error: 'Invalid webhook payload: missing data.id field'
       });
     }
-    const config = getConfig();
-    const logger = new Logger(config.logLevel);
 
-    logger.info(`notion pageCreate webhook content: ${req.body.data}`)
     const pageId = req.body.data.id;
-    logger.info(`Webhook: Received Notion webhook for page ${pageId}`);
     // 使用现有的同步逻辑
     const syncService = new SyncService(config, logger);
     const result = await syncService.syncPage(pageId);
