@@ -1,11 +1,11 @@
 {
-  "name": "notion-upload",
+  "name": "anivia",
   "version": "1.0.0",
   "description": "Sync Notion pages to Supabase database with image upload to Cloudflare",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "bun run dist/server.js",
+    "start": "bun run build && bun run dist/server.js",
     "dev": "ts-node src/server.js",
     "sync": "npm run build && node dist/index.js sync",
     "export": "npm run build && node dist/index.js export",

@@ -52,10 +52,11 @@ app.get('/health', (req: Request, res: Response) => {
 // API 信息端点
 app.get('/', (req: Request, res: Response) => {
   res.json({
-    service: 'Notion Upload API',
+    service: 'anivia API',
     version: '1.0.0',
     endpoints: {
       'GET /sync?pageId=xxx': 'Sync a Notion page to Supabase',
+      'POST /webhook/notion/pageCreate': 'Receive Notion webhook and sync page',
       'POST /export': 'Export all articles from Supabase to Markdown',
       'GET /check/notion': 'Check Notion API configuration',
       'GET /check/db': 'Check Supabase database configuration',
@@ -103,6 +104,44 @@ app.get('/sync', async (req: Request, res: Response) => {
 
   } catch (error: any) {
     console.error('Sync error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error'
+    });
+  }
+});
+
+// Notion Webhook 端点
+app.post('/webhook/notion/pageCreate', async (req: Request, res: Response) => {
+  try {
+    // 验证请求体结构
+    if (!req.body || !req.body.data || !req.body.data.id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid webhook payload: missing data.id field'
+      });
+    }
+    const config = getConfig();
+    const logger = new Logger(config.logLevel);
+
+    logger.info(`notion pageCreate webhook content: ${req.body.data}`)
+    const pageId = req.body.data.id;
+    logger.info(`Webhook: Received Notion webhook for page ${pageId}`);
+    // 使用现有的同步逻辑
+    const syncService = new SyncService(config, logger);
+    const result = await syncService.syncPage(pageId);
+
+    logger.info(`Webhook: Sync completed for page ${pageId}, success: ${result.success}`);
+
+    res.json({
+      success: result.success,
+      pageId: result.pageId,
+      imagesProcessed: result.imagesProcessed,
+      errors: result.errors || []
+    });
+
+  } catch (error: any) {
+    console.error('Webhook error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Internal server error'
