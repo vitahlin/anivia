@@ -1,0 +1,140 @@
+name: Sync Notion to Supabase
+
+on:
+  schedule:
+    # 每 3 小时执行一次（UTC 时间）
+    - cron: '0 */3 * * *'
+  
+  workflow_dispatch:
+    # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build project
+        run: bun run build
+
+      - name: Calculate time range
+        id: time
+        run: |
+          # 获取当前时间（UTC）
+          END_TIME=$(date -u +"%Y%m%d%H%M%S")
+          
+          # 计算 3 小时前的时间
+          START_TIME=$(date -u -d '3 hours ago' +"%Y%m%d%H%M%S")
+          
+          echo "start_time=$START_TIME" >> $GITHUB_OUTPUT
+          echo "end_time=$END_TIME" >> $GITHUB_OUTPUT
+          
+          echo "Time range: $START_TIME to $END_TIME"
+
+      - name: Sync Notion databases
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ secrets.CLOUDFLARE_R2_BUCKET_NAME }}
+          CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.CLOUDFLARE_R2_PUBLIC_URL }}
+          NOTION_DATABASE_IDS: ${{ secrets.NOTION_DATABASE_IDS }}
+        run: |
+          # 从环境变量读取数据库 ID 列表（逗号分隔）
+          # 例如：NOTION_DATABASE_IDS="id1,id2,id3"
+
+          if [ -z "$NOTION_DATABASE_IDS" ]; then
+            echo "::error::NOTION_DATABASE_IDS 未配置"
+            exit 1
+          fi
+
+          # 将逗号分隔的字符串转换为数组
+          IFS=',' read -ra DATABASES <<< "$NOTION_DATABASE_IDS"
+
+          START_TIME="${{ steps.time.outputs.start_time }}"
+          END_TIME="${{ steps.time.outputs.end_time }}"
+
+          echo "=========================================="
+          echo "开始同步 Notion 数据库"
+          echo "时间范围: $START_TIME - $END_TIME"
+          echo "数据库数量: ${#DATABASES[@]}"
+          echo "=========================================="
+          echo ""
+
+          # 统计变量
+          TOTAL_DBS=${#DATABASES[@]}
+          SUCCESS_COUNT=0
+          FAIL_COUNT=0
+          FAILED_DBS=()
+
+          # 遍历所有数据库
+          INDEX=1
+          for DB_ID in "${DATABASES[@]}"; do
+            # 去除空格
+            DB_ID=$(echo "$DB_ID" | xargs)
+
+            if [ -z "$DB_ID" ]; then
+              continue
+            fi
+
+            echo "=========================================="
+            echo "[$INDEX/$TOTAL_DBS] 同步数据库"
+            echo "数据库 ID: $DB_ID"
+            echo "=========================================="
+
+            # 执行同步命令
+            if bun run dist/index.js sync-updated-page "$DB_ID" "$START_TIME" "$END_TIME"; then
+              echo "✅ 数据库同步成功"
+              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            else
+              echo "❌ 数据库同步失败"
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+              FAILED_DBS+=("$DB_ID")
+            fi
+
+            echo ""
+            INDEX=$((INDEX + 1))
+          done
+
+          # 输出最终统计
+          echo "=========================================="
+          echo "同步完成统计"
+          echo "=========================================="
+          echo "总数据库数: $TOTAL_DBS"
+          echo "成功: $SUCCESS_COUNT"
+          echo "失败: $FAIL_COUNT"
+
+          # 如果有失败的数据库，列出详情
+          if [ $FAIL_COUNT -gt 0 ]; then
+            echo ""
+            echo "失败的数据库:"
+            for FAILED_DB in "${FAILED_DBS[@]}"; do
+              echo "  - $FAILED_DB"
+            done
+            echo ""
+            echo "=========================================="
+            exit 1
+          fi
+
+          echo "=========================================="
+          echo "✅ 所有数据库同步成功！"
+          echo "=========================================="
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Notion 同步失败，请检查日志"
+
