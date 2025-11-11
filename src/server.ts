@@ -45,7 +45,7 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    service: 'notion-upload'
+    service: 'anivia'
   });
 });
 
