@@ -11,6 +11,7 @@
     "export": "npm run build && node dist/index.js export",
     "check-notion": "npm run build && node dist/index.js check-notion",
     "check-db": "npm run build && node dist/index.js check-db",
+    "query-updated": "npm run build && node dist/index.js query-updated",
     "server": "npm run build && node dist/server.js",
     "server:dev": "ts-node src/server.ts"
   },

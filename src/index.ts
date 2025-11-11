@@ -347,6 +347,62 @@ program
     }
   });
 
+program
+  .command('query-database-updated-page')
+  .description('Query pages updated in a time range from Notion database')
+  .argument('<databaseId>', 'Notion database ID')
+  .argument('<startTime>', 'Start time in format yyyyMMddHHmmss')
+  .argument('<endTime>', 'End time in format yyyyMMddHHmmss')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (databaseId: string, startTime: string, endTime: string, options) => {
+    try {
+      const config = getConfig();
+      const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
+
+      // Parse time strings
+      const parseTime = (timeStr: string): Date => {
+        const year = parseInt(timeStr.substring(0, 4));
+        const month = parseInt(timeStr.substring(4, 6)) - 1;
+        const day = parseInt(timeStr.substring(6, 8));
+        const hour = parseInt(timeStr.substring(8, 10));
+        const minute = parseInt(timeStr.substring(10, 12));
+        const second = parseInt(timeStr.substring(12, 14));
+        return new Date(year, month, day, hour, minute, second);
+      };
+
+      const start = parseTime(startTime);
+      const end = parseTime(endTime);
+
+      logger.info('🔍 查询更新的页面...');
+      logger.info(`📊 数据库 ID: ${databaseId}`);
+      logger.info(`⏰ 开始时间: ${start.toISOString()}`);
+      logger.info(`⏰ 结束时间: ${end.toISOString()}`);
+
+      const notionService = new NotionService(config.notion, logger);
+      const pages = await notionService.queryDatabaseByTimeRange(
+        databaseId,
+        start.toISOString(),
+        end.toISOString()
+      );
+
+      logger.info('');
+      logger.info(`✅ 找到 ${pages.length} 个更新的页面:`);
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      pages.forEach((page, index) => {
+        logger.info(`${index + 1}. ${page.title || '(无标题)'}`);
+        logger.info(`   ID: ${page.id}`);
+        logger.info(`   最后编辑: ${page.lastEditedTime}`);
+      });
+
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    } catch (error) {
+      console.error('❌ 查询失败:', error);
+      process.exit(1);
+    }
+  });
+
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
