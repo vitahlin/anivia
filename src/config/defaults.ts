@@ -78,15 +78,31 @@ export const DEFAULT_CONFIG = {
 /**
  * 获取完整的配置（包括敏感信息）
  * 敏感信息必须通过环境变量提供
+ *
+ * @param options.skipNotionValidation - 跳过 Notion API Key 验证（用于 export 命令）
+ * @param options.skipCloudflareValidation - 跳过 Cloudflare 验证（用于 export 命令）
  */
-export function getFullConfig() {
+export function getFullConfig(options?: {
+  skipNotionValidation?: boolean;
+  skipCloudflareValidation?: boolean;
+}) {
+  const skipNotion = options?.skipNotionValidation || false;
+  const skipCloudflare = options?.skipCloudflareValidation || false;
+
   // 验证必需的敏感环境变量
-  const requiredSecrets = [
-    'NOTION_API_KEY',
-    'SUPABASE_ANON_KEY',
-    'CLOUDFLARE_ACCESS_KEY_ID',
-    'CLOUDFLARE_SECRET_ACCESS_KEY',
-  ];
+  const requiredSecrets: string[] = [];
+
+  if (!skipNotion) {
+    requiredSecrets.push('NOTION_API_KEY');
+  }
+
+  // Supabase 总是需要的
+  requiredSecrets.push('SUPABASE_ANON_KEY');
+
+  if (!skipCloudflare) {
+    requiredSecrets.push('CLOUDFLARE_ACCESS_KEY_ID');
+    requiredSecrets.push('CLOUDFLARE_SECRET_ACCESS_KEY');
+  }
 
   const missingSecrets = requiredSecrets.filter(
     (varName) => !process.env[varName]
@@ -101,18 +117,21 @@ export function getFullConfig() {
 
   // 验证必需的非敏感环境变量（如果没有默认值）
   const requiredNonSecrets = [];
-  
+
   if (!DEFAULT_CONFIG.supabase.url) {
     requiredNonSecrets.push('SUPABASE_URL');
   }
-  if (!DEFAULT_CONFIG.cloudflare.accountId) {
-    requiredNonSecrets.push('CLOUDFLARE_ACCOUNT_ID');
-  }
-  if (!DEFAULT_CONFIG.cloudflare.bucketName) {
-    requiredNonSecrets.push('CLOUDFLARE_BUCKET_NAME');
-  }
-  if (!DEFAULT_CONFIG.cloudflare.publicUrl) {
-    requiredNonSecrets.push('CLOUDFLARE_PUBLIC_URL');
+
+  if (!skipCloudflare) {
+    if (!DEFAULT_CONFIG.cloudflare.accountId) {
+      requiredNonSecrets.push('CLOUDFLARE_ACCOUNT_ID');
+    }
+    if (!DEFAULT_CONFIG.cloudflare.bucketName) {
+      requiredNonSecrets.push('CLOUDFLARE_BUCKET_NAME');
+    }
+    if (!DEFAULT_CONFIG.cloudflare.publicUrl) {
+      requiredNonSecrets.push('CLOUDFLARE_PUBLIC_URL');
+    }
   }
 
   if (requiredNonSecrets.length > 0) {
@@ -124,7 +143,7 @@ export function getFullConfig() {
 
   return {
     notion: {
-      apiKey: process.env.NOTION_API_KEY!,
+      apiKey: process.env.NOTION_API_KEY || '',
     },
     supabase: {
       url: DEFAULT_CONFIG.supabase.url,
@@ -133,8 +152,8 @@ export function getFullConfig() {
     },
     cloudflare: {
       accountId: DEFAULT_CONFIG.cloudflare.accountId,
-      accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY!,
+      accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY || '',
       bucketName: DEFAULT_CONFIG.cloudflare.bucketName,
       endpoint: DEFAULT_CONFIG.cloudflare.endpoint,
       publicUrl: DEFAULT_CONFIG.cloudflare.publicUrl,

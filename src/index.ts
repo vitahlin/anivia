@@ -303,8 +303,11 @@ program
   .option('--no-metadata', 'Do not include front matter metadata in markdown files')
   .action(async (options) => {
     try {
-      // Load configuration (same as sync command)
-      const config = getConfig();
+      // Load configuration - export only needs Supabase, skip Notion and Cloudflare validation
+      const config = getConfig({
+        skipNotionValidation: true,
+        skipCloudflareValidation: true
+      });
 
       // Determine log level (same as sync command)
       const logger = new Logger(options.verbose ? 'debug' : config.logLevel);

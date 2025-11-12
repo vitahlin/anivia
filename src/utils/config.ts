@@ -15,9 +15,15 @@ dotenv.config();
  *
  * 敏感信息（API 密钥等）必须通过环境变量或 .env 文件提供
  * 非敏感信息可以在 src/config/defaults.ts 中硬编码
+ *
+ * @param options.skipNotionValidation - 跳过 Notion API Key 验证（用于 export 命令）
+ * @param options.skipCloudflareValidation - 跳过 Cloudflare 验证（用于 export 命令）
  */
-export function getConfig(): AppConfig {
-  const config = getFullConfig();
+export function getConfig(options?: {
+  skipNotionValidation?: boolean;
+  skipCloudflareValidation?: boolean;
+}): AppConfig {
+  const config = getFullConfig(options);
 
   return {
     notion: {
