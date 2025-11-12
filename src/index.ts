@@ -514,6 +514,15 @@ program
 
       logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
+      // 输出特殊标记，用于 GitHub Actions 检测是否有数据更新
+      if (successCount > 0) {
+        console.log('::set-output name=has_updates::true');
+        logger.info('🔔 检测到数据更新，将触发通知');
+      } else {
+        console.log('::set-output name=has_updates::false');
+        logger.info('ℹ️  没有数据更新');
+      }
+
       if (failCount > 0) {
         process.exit(1);
       }

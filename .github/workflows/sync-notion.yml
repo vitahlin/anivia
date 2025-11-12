@@ -42,6 +42,7 @@ jobs:
           echo "Time range: $START_TIME to $END_TIME"
 
       - name: Sync Notion databases
+        id: sync
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -77,6 +78,7 @@ jobs:
           SUCCESS_COUNT=0
           FAIL_COUNT=0
           FAILED_DBS=()
+          HAS_UPDATES=false
 
           # 遍历所有数据库
           INDEX=1
@@ -93,10 +95,20 @@ jobs:
             echo "数据库 ID: $DB_ID"
             echo "=========================================="
 
-            # 执行同步命令
-            if bun run dist/index.js sync-updated-page "$DB_ID" "$START_TIME" "$END_TIME"; then
+            # 执行同步命令并捕获输出
+            SYNC_OUTPUT=$(bun run dist/index.js sync-updated-page "$DB_ID" "$START_TIME" "$END_TIME" 2>&1)
+            SYNC_EXIT_CODE=$?
+
+            echo "$SYNC_OUTPUT"
+
+            if [ $SYNC_EXIT_CODE -eq 0 ]; then
               echo "✅ 数据库同步成功"
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+
+              # 检查是否有数据更新
+              if echo "$SYNC_OUTPUT" | grep -q "has_updates::true"; then
+                HAS_UPDATES=true
+              fi
             else
               echo "❌ 数据库同步失败"
               FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -130,6 +142,19 @@ jobs:
           echo "=========================================="
           echo "✅ 所有数据库同步成功！"
           echo "=========================================="
+
+          # 设置输出变量
+          echo "has_updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
+
+      - name: Notify zilean to update submodule
+        if: steps.sync.outputs.has_updates == 'true'
+        run: |
+          echo "🔔 检测到数据更新，通知 zilean 项目更新子模块..."
+          curl -X POST https://api.github.com/repos/vitahlin/zilean/dispatches \
+            -H "Authorization: token ${{ secrets.ZILEAN_AND_ANIVIA_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"event_type":"update_submodule_anivia"}'
+          echo "✅ 通知已发送"
 
       - name: Notify on failure
         if: failure()
