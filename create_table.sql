@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS anivia_notion_page (
   handler TEXT NOT NULL DEFAULT '',
   published BOOLEAN NOT NULL DEFAULT false,
   draft BOOLEAN NOT NULL DEFAULT false,
+  archived BOOLEAN NOT NULL DEFAULT false,
   categories TEXT[] NOT NULL DEFAULT '{}',
   tags TEXT[] NOT NULL DEFAULT '{}',
   excerpt TEXT NOT NULL DEFAULT '',
@@ -30,6 +31,7 @@ COMMENT ON COLUMN anivia_notion_page.last_edited_time IS 'Notion 页面最后编
 COMMENT ON COLUMN anivia_notion_page.handler IS '处理人';
 COMMENT ON COLUMN anivia_notion_page.published IS '是否发布';
 COMMENT ON COLUMN anivia_notion_page.draft IS '是否是草稿';
+COMMENT ON COLUMN anivia_notion_page.archived IS '是否归档';
 COMMENT ON COLUMN anivia_notion_page.categories IS '页面分类（多选）';
 COMMENT ON COLUMN anivia_notion_page.tags IS '标签（多选）';
 COMMENT ON COLUMN anivia_notion_page.excerpt IS '文章摘要';
@@ -43,6 +45,7 @@ COMMENT ON COLUMN anivia_notion_page.updated_at IS '记录更新时间（由应�
 CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_notion_page_id ON anivia_notion_page(notion_page_id);
 CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_published ON anivia_notion_page(published);
 CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_draft ON anivia_notion_page(draft);
+CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_archived ON anivia_notion_page(archived);
 CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_handler ON anivia_notion_page(handler);
 CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_categories ON anivia_notion_page USING GIN(categories);
 CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_tags ON anivia_notion_page USING GIN(tags);

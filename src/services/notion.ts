@@ -32,6 +32,7 @@ export class NotionService {
     const handler = this.extractHandler(page);
     const published = this.extractPublished(page);
     const draft = this.extractDraft(page);
+    const archived = this.extractArchived(page);
     const categories = this.extractCategories(page);
     const tags = this.extractTags(page);
     const excerpt = this.extractExcerpt(page);
@@ -52,6 +53,7 @@ export class NotionService {
       handler,
       published,
       draft,
+      archived,
       categories,
       tags,
       excerpt,
@@ -177,6 +179,20 @@ export class NotionService {
     if ('properties' in page) {
       for (const [key, value] of Object.entries(page.properties)) {
         if (key.toLowerCase() === 'draft' || key === '草稿' || key === 'Draft') {
+          const prop = value as any;
+          if (prop.type === 'checkbox') {
+            return prop.checkbox || false;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  private extractArchived(page: any): boolean {
+    if ('properties' in page) {
+      for (const [key, value] of Object.entries(page.properties)) {
+        if (key.toLowerCase() === 'archived' || key === '归档' || key === 'Archived') {
           const prop = value as any;
           if (prop.type === 'checkbox') {
             return prop.checkbox || false;

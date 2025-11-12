@@ -49,14 +49,15 @@ export class ExportService {
       this.logger.info('📖 从 Supabase 查询所有文章...');
       const allPages = await this.supabaseService.getAllPages();
 
-      // 只导出已发布的文章
-      const pages = allPages.filter(page => page.published === true);
+      // 只导出已发布且非草稿的文章
+      const pages = allPages.filter(page => page.published === true && page.draft === false);
+      const draftCount = allPages.filter(page => page.draft === true).length;
       result.totalPages = pages.length;
 
-      this.logger.info(`📊 找到 ${allPages.length} 篇文章，其中 ${pages.length} 篇已发布`);
+      this.logger.info(`📊 找到 ${allPages.length} 篇文章，其中 ${pages.length} 篇已发布（跳过 ${draftCount} 篇草稿）`);
 
       if (pages.length === 0) {
-        this.logger.warn('⚠️  没有找到已发布的文章。请确保文章的 "发布" 字段为 true。');
+        this.logger.warn('⚠️  没有找到已发布的非草稿文章。请确保文章的 "发布" 字段为 true 且 "草稿" 字段为 false。');
         return result;
       }
 
@@ -155,6 +156,8 @@ export class ExportService {
       content += `exported_time: ${this.getCurrentBeijingTime()}\n`;
       content += `handler: ${page.handler || ''}\n`;
       content += `published: ${page.published}\n`;
+      content += `draft: ${page.draft}\n`;
+      content += `archived: ${page.archived}\n`;
 
       if (page.categories && page.categories.length > 0) {
         content += `categories:\n`;

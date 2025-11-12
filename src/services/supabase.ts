@@ -29,6 +29,7 @@ export class SupabaseService {
         handler: pageData.handler,
         published: pageData.published,
         draft: pageData.draft,
+        archived: pageData.archived,
         categories: pageData.categories,
         tags: pageData.tags,
         excerpt: pageData.excerpt,

@@ -7,6 +7,7 @@ export interface NotionPageData {
   handler: string; // 处理人
   published: boolean; // 是否发布
   draft: boolean; // 是否是草稿
+  archived: boolean; // 是否归档
   categories: string[]; // 分类（多选）
   tags: string[]; // 标签（多选）
   excerpt: string; // 文章摘要
@@ -37,6 +38,7 @@ export interface SupabasePageRecord {
   handler: string; // 处理人
   published: boolean; // 是否发布
   draft: boolean; // 是否是草稿
+  archived: boolean; // 是否归档
   categories: string[]; // 分类（数组）
   tags: string[]; // 标签（数组）
   excerpt: string; // 文章摘要
