@@ -6,6 +6,7 @@ export interface NotionPageData {
   lastEditedTime: string;
   handler: string; // 处理人
   published: boolean; // 是否发布
+  draft: boolean; // 是否是草稿
   categories: string[]; // 分类（多选）
   tags: string[]; // 标签（多选）
   excerpt: string; // 文章摘要
@@ -35,6 +36,7 @@ export interface SupabasePageRecord {
   last_edited_time: string;
   handler: string; // 处理人
   published: boolean; // 是否发布
+  draft: boolean; // 是否是草稿
   categories: string[]; // 分类（数组）
   tags: string[]; // 标签（数组）
   excerpt: string; // 文章摘要

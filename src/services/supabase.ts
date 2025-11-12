@@ -5,7 +5,7 @@ import { Logger } from '../utils/logger';
 export class SupabaseService {
   private client: SupabaseClient;
   private logger: Logger;
-  private tableName = 'zilean_notion_page';
+  private tableName = 'anivia_notion_page';
 
   constructor(config: SupabaseConfig, logger: Logger) {
     this.client = createClient(config.url, config.anonKey);
@@ -28,6 +28,7 @@ export class SupabaseService {
         last_edited_time: pageData.lastEditedTime,
         handler: pageData.handler,
         published: pageData.published,
+        draft: pageData.draft,
         categories: pageData.categories,
         tags: pageData.tags,
         excerpt: pageData.excerpt,

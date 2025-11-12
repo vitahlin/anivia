@@ -351,10 +351,10 @@ program
   .command('query-updated-page')
   .description('Query pages updated in a time range from Notion database')
   .argument('<databaseId>', 'Notion database ID')
-  .argument('<startTime>', 'Start time in format yyyyMMddHHmmss')
-  .argument('<endTime>', 'End time in format yyyyMMddHHmmss')
+  .argument('[startTime]', 'Start time in format yyyyMMddHHmmss (default: 20000101000000)')
+  .argument('[endTime]', 'End time in format yyyyMMddHHmmss (default: current time)')
   .option('-v, --verbose', 'Enable verbose logging')
-  .action(async (databaseId: string, startTime: string, endTime: string, options) => {
+  .action(async (databaseId: string, startTime: string | undefined, endTime: string | undefined, options) => {
     try {
       const config = getConfig();
       const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
@@ -370,8 +370,12 @@ program
         return new Date(year, month, day, hour, minute, second);
       };
 
-      const start = parseTime(startTime);
-      const end = parseTime(endTime);
+      // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00
+      const defaultStartTime = '20000101000000';
+      const start = parseTime(startTime || defaultStartTime);
+
+      // 如果没有提供 endTime，默认使用当前时间
+      const end = endTime ? parseTime(endTime) : new Date();
 
       logger.info('🔍 查询更新的页面...');
       logger.info(`📊 数据库 ID: ${databaseId}`);
@@ -407,10 +411,10 @@ program
   .command('sync-updated-page')
   .description('Query and sync pages updated in a time range from Notion database to Supabase')
   .argument('<databaseId>', 'Notion database ID')
-  .argument('<startTime>', 'Start time in format yyyyMMddHHmmss')
-  .argument('<endTime>', 'End time in format yyyyMMddHHmmss')
+  .argument('[startTime]', 'Start time in format yyyyMMddHHmmss (default: 20000101000000)')
+  .argument('[endTime]', 'End time in format yyyyMMddHHmmss (default: current time)')
   .option('-v, --verbose', 'Enable verbose logging')
-  .action(async (databaseId: string, startTime: string, endTime: string, options) => {
+  .action(async (databaseId: string, startTime: string | undefined, endTime: string | undefined, options) => {
     try {
       const config = getConfig();
       const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
@@ -425,8 +429,12 @@ program
         return new Date(year, month, day, hour, minute, second);
       };
 
-      const start = parseTime(startTime);
-      const end = parseTime(endTime);
+      // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00
+      const defaultStartTime = '20000101000000';
+      const start = parseTime(startTime || defaultStartTime);
+
+      // 如果没有提供 endTime，默认使用当前时间
+      const end = endTime ? parseTime(endTime) : new Date();
 
       logger.info('🔍 查询并同步更新的页面...');
       logger.info(`📊 数据库 ID: ${databaseId}`);

@@ -31,6 +31,7 @@ export class NotionService {
     const lastEditedTime = this.extractLastEditedTime(page);
     const handler = this.extractHandler(page);
     const published = this.extractPublished(page);
+    const draft = this.extractDraft(page);
     const categories = this.extractCategories(page);
     const tags = this.extractTags(page);
     const excerpt = this.extractExcerpt(page);
@@ -50,6 +51,7 @@ export class NotionService {
       lastEditedTime,
       handler,
       published,
+      draft,
       categories,
       tags,
       excerpt,
@@ -160,7 +162,21 @@ export class NotionService {
   private extractPublished(page: any): boolean {
     if ('properties' in page) {
       for (const [key, value] of Object.entries(page.properties)) {
-        if (key.toLowerCase() === 'published' || key === '发布') {
+        if (key.toLowerCase() === 'published' || key === '发布' || key === 'Published') {
+          const prop = value as any;
+          if (prop.type === 'checkbox') {
+            return prop.checkbox || false;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  private extractDraft(page: any): boolean {
+    if ('properties' in page) {
+      for (const [key, value] of Object.entries(page.properties)) {
+        if (key.toLowerCase() === 'draft' || key === '草稿' || key === 'Draft') {
           const prop = value as any;
           if (prop.type === 'checkbox') {
             return prop.checkbox || false;
@@ -193,7 +209,7 @@ export class NotionService {
   private extractTags(page: any): string[] {
     if ('properties' in page) {
       for (const [key, value] of Object.entries(page.properties)) {
-        if (key.toLowerCase() === 'tags' || key === '标签') {
+        if (key.toLowerCase() === 'tags' || key === '标签' || key === 'Tags') {
           const prop = value as any;
           if (prop.type === 'multi_select' && prop.multi_select) {
             return prop.multi_select.map((s: any) => s.name);
@@ -221,8 +237,12 @@ export class NotionService {
   private extractFeaturedImg(page: any): string {
     if ('properties' in page) {
       for (const [key, prop] of Object.entries(page.properties)) {
-        // Check for '配图' property
-        if (key === '配图' || key.toLowerCase() === 'featured image' || key.toLowerCase() === 'cover') {
+        // Check for featured image property
+        if (key === '配图' ||
+            key.toLowerCase() === 'featured image' ||
+            key.toLowerCase() === 'featured img' ||
+            key === 'Featured Img' ||
+            key.toLowerCase() === 'cover') {
           const propValue = prop as any;
 
           // Handle files property type (uploaded images)
@@ -256,8 +276,12 @@ export class NotionService {
   private extractGallery(page: any): string[] {
     if ('properties' in page) {
       for (const [key, prop] of Object.entries(page.properties)) {
-        // Check for '组图' property
-        if (key === '组图' || key.toLowerCase() === 'gallery' || key.toLowerCase() === 'images') {
+        // Check for gallery property
+        if (key === '组图' ||
+            key.toLowerCase() === 'gallery' ||
+            key.toLowerCase() === 'gallery imgs' ||
+            key === 'Gallery Imgs' ||
+            key.toLowerCase() === 'images') {
           const propValue = prop as any;
 
           // Handle files property type
