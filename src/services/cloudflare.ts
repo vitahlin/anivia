@@ -197,7 +197,7 @@ export class CloudflareService {
     const cloudflareUrl = `${this.config.publicUrl}/${key}`;
     this.uploadedImages.add(image.hash);
 
-    this.logger.info(`✅ 图片上传成功: ${image.filename} -> ${cloudflareUrl} (${originalSize}字节 -> ${webpSize}字节, 节省${compressionRatio}%)`);
+    this.logger.debug(`✅ 图片上传成功: ${image.filename} -> ${cloudflareUrl} (${originalSize}字节 -> ${webpSize}字节, 节省${compressionRatio}%)`);
 
     return cloudflareUrl;
   }

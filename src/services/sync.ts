@@ -102,9 +102,9 @@ export class SyncService {
         type: 'featured'
       };
       allImages.push(featuredImage);
-      this.logger.info(`📸 提取到配图: ${pageData.featuredImg}`);
+      this.logger.info(`提取到配图`);
     } else {
-      this.logger.info('📸 页面没有配图');
+      this.logger.info('页面没有配图');
     }
 
     // 处理组图
@@ -119,9 +119,9 @@ export class SyncService {
         };
         allImages.push(galleryImage);
       });
-      this.logger.info(`📸 提取到组图: ${pageData.galleryImgs.length} 张`);
+      this.logger.info(`提取到组图: ${pageData.galleryImgs.length} 张`);
     } else {
-      this.logger.info('📸 页面没有组图');
+      this.logger.info('页面没有组图');
     }
 
     // Step 5: 上传所有图片到 Cloudflare
