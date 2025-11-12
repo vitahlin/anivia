@@ -52,10 +52,10 @@ export const DEFAULT_CONFIG = {
   app: {
     // 日志级别（非敏感）
     logLevel: process.env.LOG_LEVEL || 'info',
-    
+
     // 导出目录（非敏感）
-    exportDir: process.env.EXPORT_DIR || 'exported-posts',
-    
+    exportDir: process.env.EXPORT_DIR || 'anivia_export',
+
     // 服务器端口（非敏感）
     port: parseInt(process.env.PORT || '3000', 10),
   },
