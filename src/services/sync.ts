@@ -32,13 +32,30 @@ export class SyncService {
     this.logger.info(`开始同步页面: ${pageId}`);
     let imagesProcessed = 0;
 
-    // Step 0: 检查是否需要更新
+    // Step 0: 检查页面是否需要同步
+    this.logger.info('Step 0: 检查页面状态...');
     const cleanPageId = pageId.replace(/-/g, '');
+
+    // 先获取页面数据以检查 published 状态
+    const pageData: NotionPageData = await this.notionService.getPageData(pageId);
+
+    // 检查 published 状态
+    if (!pageData.published) {
+      this.logger.info(`⏭️  页面未发布 (published=false)，跳过同步`);
+      return {
+        success: true,
+        pageId,
+        message: '页面未发布，跳过同步',
+        imagesProcessed: 0,
+        skipped: true
+      };
+    }
+
+    // 检查是否需要更新
     const existingPage = await this.supabaseService.getPageById(cleanPageId);
 
     if (existingPage) {
       // 获取 Notion 页面的最后编辑时间
-      const pageData = await this.notionService.getPageData(pageId);
       const notionLastEdited = new Date(pageData.lastEditedTime);
       const supabaseLastEdited = new Date(existingPage.last_edited_time);
 
@@ -58,9 +75,8 @@ export class SyncService {
       this.logger.info(`🆕 新页面，继续同步`);
     }
 
-    // Step 1: 获取 Notion 页面数据
-    this.logger.info('Step 1: 获取 Notion 页面数据...');
-    const pageData: NotionPageData = await this.notionService.getPageData(pageId);
+    // Step 1: 获取 Notion 页面数据（已在 Step 0 中获取）
+    this.logger.info('Step 1: 使用已获取的 Notion 页面数据...');
 
     // Step 2: 转换页面为 Markdown
     this.logger.info('Step 2: 转换页面为 Markdown...');
