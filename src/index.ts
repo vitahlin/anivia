@@ -297,7 +297,7 @@ program
 program
   .command('export')
   .description('Export all articles from Supabase to local Markdown files')
-  .option('-o, --output <dir>', 'Output directory for markdown files', '../anivia_export')
+  .option('-o, --output <dir>', 'Output directory for markdown files', './anivia_export')
   .option('-v, --verbose', 'Enable verbose logging')
   .option('--no-overwrite', 'Do not overwrite existing files (skip them)')
   .option('--no-metadata', 'Do not include front matter metadata in markdown files')
