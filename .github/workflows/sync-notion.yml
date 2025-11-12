@@ -4,7 +4,11 @@ on:
   schedule:
     # 每 3 小时执行一次（UTC 时间）
     - cron: '0 */3 * * *'
-  
+
+  push:
+    branches:
+      - main
+
   workflow_dispatch:
     # 支持手动触发
 
@@ -146,10 +150,20 @@ jobs:
           # 设置输出变量
           echo "has_updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
 
-      - name: Notify zilean to update submodule
+      - name: Notify zilean to update submodule (data updated)
         if: steps.sync.outputs.has_updates == 'true'
         run: |
           echo "🔔 检测到数据更新，通知 zilean 项目更新子模块..."
+          curl -X POST https://api.github.com/repos/vitahlin/zilean/dispatches \
+            -H "Authorization: token ${{ secrets.ZILEAN_AND_ANIVIA_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"event_type":"update_submodule_anivia"}'
+          echo "✅ 通知已发送"
+
+      - name: Notify zilean to update submodule (main push)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "🔔 检测到 main 分支有新提交，通知 zilean 项目更新子模块..."
           curl -X POST https://api.github.com/repos/vitahlin/zilean/dispatches \
             -H "Authorization: token ${{ secrets.ZILEAN_AND_ANIVIA_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
