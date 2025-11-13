@@ -34,16 +34,23 @@ jobs:
       - name: Calculate time range
         id: time
         run: |
-          # 获取当前时间（UTC）
-          END_TIME=$(date -u +"%Y%m%d%H%M%S")
-          
-          # 计算 3 小时前的时间
-          START_TIME=$(date -u -d '3 hours ago' +"%Y%m%d%H%M%S")
-          
+          # 获取当前 UTC 时间戳（秒）
+          UTC_TIMESTAMP=$(date -u +%s)
+
+          # 加 8 小时（28800 秒）得到北京时间戳
+          BEIJING_TIMESTAMP=$((UTC_TIMESTAMP + 28800))
+
+          # 转换为北京时间格式
+          END_TIME=$(date -u -d "@$BEIJING_TIMESTAMP" +"%Y%m%d%H%M%S")
+
+          # 计算 3 小时前的北京时间（减去 10800 秒）
+          START_TIMESTAMP=$((BEIJING_TIMESTAMP - 10800))
+          START_TIME=$(date -u -d "@$START_TIMESTAMP" +"%Y%m%d%H%M%S")
+
           echo "start_time=$START_TIME" >> $GITHUB_OUTPUT
           echo "end_time=$END_TIME" >> $GITHUB_OUTPUT
-          
-          echo "Time range: $START_TIME to $END_TIME"
+
+          echo "Time range (Beijing Time): $START_TIME to $END_TIME"
 
       - name: Sync Notion databases
         id: sync
