@@ -11,6 +11,12 @@ on:
 
   workflow_dispatch:
     # 支持手动触发
+    inputs:
+      days:
+        description: '同步最近多少天的页面（留空则使用默认的3小时）'
+        required: false
+        type: string
+        default: ''
 
 jobs:
   sync:
@@ -43,9 +49,21 @@ jobs:
           # 转换为北京时间格式
           END_TIME=$(date -u -d "@$BEIJING_TIMESTAMP" +"%Y%m%d%H%M%S")
 
-          # 计算 3 小时前的北京时间（减去 10800 秒）
-          START_TIMESTAMP=$((BEIJING_TIMESTAMP - 10800))
-          START_TIME=$(date -u -d "@$START_TIMESTAMP" +"%Y%m%d%H%M%S")
+          # 判断是手动触发且有输入天数，还是定时触发（默认3小时）
+          DAYS="${{ github.event.inputs.days }}"
+
+          if [ -n "$DAYS" ] && [ "$DAYS" != "0" ]; then
+            # 手动触发：同步最近 N 天
+            SECONDS_AGO=$((DAYS * 86400))  # 天数转换为秒（1天 = 86400秒）
+            START_TIMESTAMP=$((BEIJING_TIMESTAMP - SECONDS_AGO))
+            START_TIME=$(date -u -d "@$START_TIMESTAMP" +"%Y%m%d%H%M%S")
+            echo "📅 手动触发：同步最近 $DAYS 天的页面"
+          else
+            # 定时触发或手动触发但未输入天数：默认 3 小时
+            START_TIMESTAMP=$((BEIJING_TIMESTAMP - 10800))  # 3小时 = 10800秒
+            START_TIME=$(date -u -d "@$START_TIMESTAMP" +"%Y%m%d%H%M%S")
+            echo "⏰ 定时触发：同步最近 3 小时的页面"
+          fi
 
           echo "start_time=$START_TIME" >> $GITHUB_OUTPUT
           echo "end_time=$END_TIME" >> $GITHUB_OUTPUT
