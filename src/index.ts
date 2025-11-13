@@ -363,7 +363,7 @@ program
       const config = getConfig();
       const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
 
-      // Parse time strings
+      // Parse time strings as Beijing time (UTC+8) and convert to UTC
       const parseTime = (timeStr: string): Date => {
         const year = parseInt(timeStr.substring(0, 4));
         const month = parseInt(timeStr.substring(4, 6)) - 1;
@@ -371,20 +371,52 @@ program
         const hour = parseInt(timeStr.substring(8, 10));
         const minute = parseInt(timeStr.substring(10, 12));
         const second = parseInt(timeStr.substring(12, 14));
-        return new Date(year, month, day, hour, minute, second);
+
+        // 输入是北京时间（UTC+8），需要转换为 UTC 时间
+        // 北京时间减去 8 小时 = UTC 时间
+        const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+        utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+        return utcDate;
       };
 
-      // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00
+      // 将 UTC 时间转换为北京时间字符串用于显示
+      const toBeijingTimeString = (date: Date): string => {
+        const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+        const year = beijingTime.getUTCFullYear();
+        const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+        const hour = String(beijingTime.getUTCHours()).padStart(2, '0');
+        const minute = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+        const second = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hour}:${minute}:${second} (北京时间)`;
+      };
+
+      // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00 (北京时间)
       const defaultStartTime = '20000101000000';
       const start = parseTime(startTime || defaultStartTime);
 
-      // 如果没有提供 endTime，默认使用当前时间
-      const end = endTime ? parseTime(endTime) : new Date();
+      // 如果没有提供 endTime，默认使用当前北京时间
+      const end = endTime ? parseTime(endTime) : (() => {
+        const now = new Date();
+        // 获取当前 UTC 时间，加 8 小时得到北京时间
+        const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+        // 提取北京时间的年月日时分秒
+        const year = beijingTime.getUTCFullYear();
+        const month = beijingTime.getUTCMonth();
+        const day = beijingTime.getUTCDate();
+        const hour = beijingTime.getUTCHours();
+        const minute = beijingTime.getUTCMinutes();
+        const second = beijingTime.getUTCSeconds();
+        // 再转回 UTC
+        const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+        utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+        return utcDate;
+      })();
 
       logger.info('🔍 查询更新的页面...');
       logger.info(`📊 数据库 ID: ${databaseId}`);
-      logger.info(`⏰ 开始时间: ${start.toISOString()}`);
-      logger.info(`⏰ 结束时间: ${end.toISOString()}`);
+      logger.info(`⏰ 开始时间: ${toBeijingTimeString(start)}`);
+      logger.info(`⏰ 结束时间: ${toBeijingTimeString(end)}`);
 
       const notionService = new NotionService(config.notion, logger);
       const pages = await notionService.queryDatabaseByTimeRange(
@@ -400,7 +432,7 @@ program
       pages.forEach((page, index) => {
         logger.info(`${index + 1}. ${page.title || '(无标题)'}`);
         logger.info(`   ID: ${page.id}`);
-        logger.info(`   最后编辑: ${page.lastEditedTime}`);
+        logger.info(`   最后编辑: ${toBeijingTimeString(new Date(page.lastEditedTime))}`);
       });
 
       logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -423,6 +455,7 @@ program
       const config = getConfig();
       const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
 
+      // Parse time strings as Beijing time (UTC+8) and convert to UTC
       const parseTime = (timeStr: string): Date => {
         const year = parseInt(timeStr.substring(0, 4));
         const month = parseInt(timeStr.substring(4, 6)) - 1;
@@ -430,20 +463,52 @@ program
         const hour = parseInt(timeStr.substring(8, 10));
         const minute = parseInt(timeStr.substring(10, 12));
         const second = parseInt(timeStr.substring(12, 14));
-        return new Date(year, month, day, hour, minute, second);
+
+        // 输入是北京时间（UTC+8），需要转换为 UTC 时间
+        // 北京时间减去 8 小时 = UTC 时间
+        const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+        utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+        return utcDate;
       };
 
-      // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00
+      // 将 UTC 时间转换为北京时间字符串用于显示
+      const toBeijingTimeString = (date: Date): string => {
+        const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+        const year = beijingTime.getUTCFullYear();
+        const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+        const hour = String(beijingTime.getUTCHours()).padStart(2, '0');
+        const minute = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+        const second = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hour}:${minute}:${second} (北京时间)`;
+      };
+
+      // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00 (北京时间)
       const defaultStartTime = '20000101000000';
       const start = parseTime(startTime || defaultStartTime);
 
-      // 如果没有提供 endTime，默认使用当前时间
-      const end = endTime ? parseTime(endTime) : new Date();
+      // 如果没有提供 endTime，默认使用当前北京时间
+      const end = endTime ? parseTime(endTime) : (() => {
+        const now = new Date();
+        // 获取当前 UTC 时间，加 8 小时得到北京时间
+        const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+        // 提取北京时间的年月日时分秒
+        const year = beijingTime.getUTCFullYear();
+        const month = beijingTime.getUTCMonth();
+        const day = beijingTime.getUTCDate();
+        const hour = beijingTime.getUTCHours();
+        const minute = beijingTime.getUTCMinutes();
+        const second = beijingTime.getUTCSeconds();
+        // 再转回 UTC
+        const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+        utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+        return utcDate;
+      })();
 
       logger.info('🔍 查询并同步更新的页面...');
       logger.info(`📊 数据库 ID: ${databaseId}`);
-      logger.info(`⏰ 开始时间: ${start.toISOString()}`);
-      logger.info(`⏰ 结束时间: ${end.toISOString()}`);
+      logger.info(`⏰ 开始时间: ${toBeijingTimeString(start)}`);
+      logger.info(`⏰ 结束时间: ${toBeijingTimeString(end)}`);
 
       const notionService = new NotionService(config.notion, logger);
       const pages = await notionService.queryDatabaseByTimeRange(
