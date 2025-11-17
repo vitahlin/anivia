@@ -78,7 +78,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           ZILEAN_CLOUDFLARE_R2_TOKEN: ${{ secrets.ZILEAN_CLOUDFLARE_R2_TOKEN }}
-          NOTION_DATABASE_IDS: $NOTION_DATABASE_IDS
+          NOTION_DATABASE_IDS: ${{ vars.NOTION_DATABASE_IDS }}
         run: |
           # 从环境变量读取数据库 ID 列表（逗号分隔）
           # 例如：NOTION_DATABASE_IDS="id1,id2,id3"
