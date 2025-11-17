@@ -74,11 +74,10 @@ jobs:
         id: sync
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
-          CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          ZILEAN_CLOUDFLARE_R2_TOKEN: ${{ secrets.ZILEAN_CLOUDFLARE_R2_TOKEN }}
           NOTION_DATABASE_IDS: ${{ vars.NOTION_DATABASE_IDS }}
         run: |
           # 从环境变量读取数据库 ID 列表（逗号分隔）
@@ -180,7 +179,7 @@ jobs:
         run: |
           echo "🔔 检测到数据更新，通知 zilean 项目更新子模块..."
           curl -X POST https://api.github.com/repos/vitahlin/zilean/dispatches \
-            -H "Authorization: token ${{ secrets.ZILEAN_AND_ANIVIA_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.ZILEAN_AND_ANIVIA_GIT_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             -d '{"event_type":"update_submodule_anivia"}'
           echo "✅ 通知已发送"
@@ -190,7 +189,7 @@ jobs:
         run: |
           echo "🔔 检测到 main 分支有新提交，通知 zilean 项目更新子模块..."
           curl -X POST https://api.github.com/repos/vitahlin/zilean/dispatches \
-            -H "Authorization: token ${{ secrets.ZILEAN_AND_ANIVIA_TOKEN }}" \
+            -H "Authorization: token ${{ secrets.ZILEAN_AND_ANIVIA_GIT_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             -d '{"event_type":"update_submodule_anivia"}'
           echo "✅ 通知已发送"

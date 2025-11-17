@@ -16,27 +16,56 @@ export class CloudflareService {
     this.config = config;
     this.logger = logger;
 
-    // 验证配置
-    if (!config.accessKeyId || !config.secretAccessKey) {
+    // 验证配置：支持新的 API Token 或旧的 Access Key 方式
+    const hasApiToken = !!config.apiToken;
+    const hasAccessKey = !!(config.accessKeyId && config.secretAccessKey);
+
+    if (!hasApiToken && !hasAccessKey) {
       this.logger.error('❌ Cloudflare 认证配置缺失');
-      this.logger.error(`  accessKeyId: ${config.accessKeyId ? '已设置' : '未设置'}`);
-      this.logger.error(`  secretAccessKey: ${config.secretAccessKey ? '已设置' : '未设置'}`);
-      throw new Error('Cloudflare R2 认证配置缺失，请检查 CLOUDFLARE_ACCESS_KEY_ID 和 CLOUDFLARE_SECRET_ACCESS_KEY 环境变量');
+      this.logger.error(`  API Token (ZILEAN_CLOUDFLARE_R2_TOKEN): ${config.apiToken ? '已设置' : '未设置'}`);
+      this.logger.error(`  Access Key ID: ${config.accessKeyId ? '已设置' : '未设置'}`);
+      this.logger.error(`  Secret Access Key: ${config.secretAccessKey ? '已设置' : '未设置'}`);
+      throw new Error(
+        'Cloudflare R2 认证配置缺失。请提供以下任一方式：\n' +
+        '  - ZILEAN_CLOUDFLARE_R2_TOKEN (推荐，新的 API Token 方式)\n' +
+        '  或\n' +
+        '  - CLOUDFLARE_ACCESS_KEY_ID 和 CLOUDFLARE_SECRET_ACCESS_KEY (旧方式)'
+      );
     }
 
     this.logger.debug(`🔧 初始化 Cloudflare S3 客户端:`);
     this.logger.debug(`  Endpoint: ${config.endpoint}`);
     this.logger.debug(`  Bucket: ${config.bucketName}`);
-    this.logger.debug(`  Access Key ID: ${config.accessKeyId.substring(0, 8)}...`);
 
-    this.s3Client = new S3Client({
-      region: 'auto',
-      endpoint: config.endpoint,
-      credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
-      },
-    });
+    if (hasApiToken) {
+      this.logger.debug(`  认证方式: API Token (新方式)`);
+      this.logger.debug(`  API Token: ${config.apiToken!.substring(0, 8)}...`);
+
+      // 使用新的 API Token 方式
+      // Cloudflare R2 的 API Token 可以直接作为 Access Key ID 使用
+      // Secret Access Key 使用相同的 token
+      this.s3Client = new S3Client({
+        region: 'auto',
+        endpoint: config.endpoint,
+        credentials: {
+          accessKeyId: config.apiToken!,
+          secretAccessKey: config.apiToken!,
+        },
+      });
+    } else {
+      this.logger.debug(`  认证方式: Access Key (旧方式)`);
+      this.logger.debug(`  Access Key ID: ${config.accessKeyId!.substring(0, 8)}...`);
+
+      // 使用旧的 Access Key 方式
+      this.s3Client = new S3Client({
+        region: 'auto',
+        endpoint: config.endpoint,
+        credentials: {
+          accessKeyId: config.accessKeyId!,
+          secretAccessKey: config.secretAccessKey!,
+        },
+      });
+    }
   }
 
   async processImages(images: NotionImage[]): Promise<NotionImage[]> {
@@ -116,11 +145,16 @@ export class CloudflareService {
       if (error.$metadata?.httpStatusCode === 401) {
         this.logger.error(`🚨 Cloudflare R2 认证失败 (401 Unauthorized)`);
         this.logger.error(`  请检查以下配置:`);
-        this.logger.error(`  - CLOUDFLARE_ACCESS_KEY_ID 是否正确`);
-        this.logger.error(`  - CLOUDFLARE_SECRET_ACCESS_KEY 是否正确`);
-        this.logger.error(`  - Cloudflare R2 API Token 是否有效`);
+        if (this.config.apiToken) {
+          this.logger.error(`  - ZILEAN_CLOUDFLARE_R2_TOKEN 是否正确（当前使用新的 API Token 方式）`);
+          this.logger.error(`  - API Token 是否有 R2 的读写权限`);
+        } else {
+          this.logger.error(`  - CLOUDFLARE_ACCESS_KEY_ID 是否正确（当前使用旧的 Access Key 方式）`);
+          this.logger.error(`  - CLOUDFLARE_SECRET_ACCESS_KEY 是否正确`);
+        }
         this.logger.error(`  - Bucket 名称是否正确: ${this.config.bucketName}`);
         this.logger.error(`  - Endpoint 是否正确: ${this.config.endpoint}`);
+        this.logger.error(`  - API Token/Access Key 是否已过期或被撤销`);
       }
 
       this.logger.error(`🚨 检查图片存在性时出错: ${error.message || error.name}`);

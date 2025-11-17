@@ -35,6 +35,7 @@ export function getConfig(options?: {
     },
     cloudflare: {
       accountId: config.cloudflare.accountId,
+      apiToken: config.cloudflare.apiToken,
       accessKeyId: config.cloudflare.accessKeyId,
       secretAccessKey: config.cloudflare.secretAccessKey,
       bucketName: config.cloudflare.bucketName,

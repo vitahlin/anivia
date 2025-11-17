@@ -1,9 +1,13 @@
 /**
  * 默认配置文件
- * 
+ *
  * 此文件包含非敏感的默认配置值，可以安全地提交到 Git 仓库
  * 敏感信息（API 密钥等）仍然需要通过环境变量提供
  */
+
+// 确保环境变量已加载
+import dotenv from 'dotenv';
+dotenv.config();
 
 /**
  * 非敏感的默认配置
@@ -100,8 +104,18 @@ export function getFullConfig(options?: {
   requiredSecrets.push('SUPABASE_ANON_KEY');
 
   if (!skipCloudflare) {
-    requiredSecrets.push('CLOUDFLARE_ACCESS_KEY_ID');
-    requiredSecrets.push('CLOUDFLARE_SECRET_ACCESS_KEY');
+    // 支持新的 API Token 方式或旧的 Access Key 方式
+    const hasApiToken = !!process.env.ZILEAN_CLOUDFLARE_R2_TOKEN;
+    const hasAccessKey = !!(process.env.CLOUDFLARE_ACCESS_KEY_ID && process.env.CLOUDFLARE_SECRET_ACCESS_KEY);
+
+    if (!hasApiToken && !hasAccessKey) {
+      throw new Error(
+        'Missing Cloudflare R2 credentials. Please provide either:\n' +
+        '  - ZILEAN_CLOUDFLARE_R2_TOKEN (recommended, new API Token method)\n' +
+        '  OR\n' +
+        '  - CLOUDFLARE_ACCESS_KEY_ID and CLOUDFLARE_SECRET_ACCESS_KEY (legacy method)'
+      );
+    }
   }
 
   const missingSecrets = requiredSecrets.filter(
@@ -152,8 +166,9 @@ export function getFullConfig(options?: {
     },
     cloudflare: {
       accountId: DEFAULT_CONFIG.cloudflare.accountId,
-      accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID || '',
-      secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY || '',
+      apiToken: process.env.ZILEAN_CLOUDFLARE_R2_TOKEN,
+      accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID,
+      secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY,
       bucketName: DEFAULT_CONFIG.cloudflare.bucketName,
       endpoint: DEFAULT_CONFIG.cloudflare.endpoint,
       publicUrl: DEFAULT_CONFIG.cloudflare.publicUrl,
@@ -189,8 +204,12 @@ export function printConfig() {
   console.log('');
   console.log('Cloudflare R2:');
   console.log(`  Account ID: ${config.cloudflare.accountId}`);
-  console.log(`  Access Key ID: ${maskSecret(config.cloudflare.accessKeyId)}`);
-  console.log(`  Secret Access Key: ${maskSecret(config.cloudflare.secretAccessKey)}`);
+  if (config.cloudflare.apiToken) {
+    console.log(`  API Token: ${maskSecret(config.cloudflare.apiToken)} (新方式)`);
+  } else {
+    console.log(`  Access Key ID: ${maskSecret(config.cloudflare.accessKeyId || '')} (旧方式)`);
+    console.log(`  Secret Access Key: ${maskSecret(config.cloudflare.secretAccessKey || '')} (旧方式)`);
+  }
   console.log(`  Bucket Name: ${config.cloudflare.bucketName}`);
   console.log(`  Endpoint: ${config.cloudflare.endpoint}`);
   console.log(`  Public URL: ${config.cloudflare.publicUrl}`);

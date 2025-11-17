@@ -51,8 +51,11 @@ export interface SupabasePageRecord {
 
 export interface CloudflareConfig {
   accountId: string;
-  accessKeyId: string;
-  secretAccessKey: string;
+  // 新的 API Token 方式（推荐）
+  apiToken?: string;
+  // 旧的 Access Key 方式（向后兼容）
+  accessKeyId?: string;
+  secretAccessKey?: string;
   bucketName: string;
   endpoint: string;
   publicUrl: string;
