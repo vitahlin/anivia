@@ -74,9 +74,9 @@ jobs:
         id: sync
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ZILEAN_CLOUDFLARE_R2_TOKEN: ${{ secrets.ZILEAN_CLOUDFLARE_R2_TOKEN }}
           NOTION_DATABASE_IDS: ${{ vars.NOTION_DATABASE_IDS }}
         run: |
