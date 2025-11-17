@@ -15,7 +15,20 @@ export class CloudflareService {
   constructor(config: CloudflareConfig, logger: Logger) {
     this.config = config;
     this.logger = logger;
-    
+
+    // 验证配置
+    if (!config.accessKeyId || !config.secretAccessKey) {
+      this.logger.error('❌ Cloudflare 认证配置缺失');
+      this.logger.error(`  accessKeyId: ${config.accessKeyId ? '已设置' : '未设置'}`);
+      this.logger.error(`  secretAccessKey: ${config.secretAccessKey ? '已设置' : '未设置'}`);
+      throw new Error('Cloudflare R2 认证配置缺失，请检查 CLOUDFLARE_ACCESS_KEY_ID 和 CLOUDFLARE_SECRET_ACCESS_KEY 环境变量');
+    }
+
+    this.logger.debug(`🔧 初始化 Cloudflare S3 客户端:`);
+    this.logger.debug(`  Endpoint: ${config.endpoint}`);
+    this.logger.debug(`  Bucket: ${config.bucketName}`);
+    this.logger.debug(`  Access Key ID: ${config.accessKeyId.substring(0, 8)}...`);
+
     this.s3Client = new S3Client({
       region: 'auto',
       endpoint: config.endpoint,
@@ -95,10 +108,23 @@ export class CloudflareService {
       return publicUrl;
     } catch (error: any) {
       if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
-        this.logger.info(`❌ 图片不存在于 Cloudflare: images/${contentHash}.webp`);
+        this.logger.debug(`图片不存在于 Cloudflare: images/${contentHash}.webp`);
         return null;
       }
-      this.logger.error(`🚨 检查图片存在性时出错: ${error.message}`);
+
+      // 401 错误特殊处理
+      if (error.$metadata?.httpStatusCode === 401) {
+        this.logger.error(`🚨 Cloudflare R2 认证失败 (401 Unauthorized)`);
+        this.logger.error(`  请检查以下配置:`);
+        this.logger.error(`  - CLOUDFLARE_ACCESS_KEY_ID 是否正确`);
+        this.logger.error(`  - CLOUDFLARE_SECRET_ACCESS_KEY 是否正确`);
+        this.logger.error(`  - Cloudflare R2 API Token 是否有效`);
+        this.logger.error(`  - Bucket 名称是否正确: ${this.config.bucketName}`);
+        this.logger.error(`  - Endpoint 是否正确: ${this.config.endpoint}`);
+      }
+
+      this.logger.error(`🚨 检查图片存在性时出错: ${error.message || error.name}`);
+      this.logger.debug(`错误详情:`, error);
       throw CloudflareError.fromAwsError(error);
     }
   }
