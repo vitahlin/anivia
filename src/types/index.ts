@@ -51,11 +51,10 @@ export interface SupabasePageRecord {
 
 export interface CloudflareConfig {
   accountId: string;
-  // 新的 API Token 方式（推荐）
-  apiToken?: string;
-  // 旧的 Access Key 方式（向后兼容）
-  accessKeyId?: string;
-  secretAccessKey?: string;
+  // R2 API Token 生成的 Access Key ID 和 Secret Access Key
+  // 在 Cloudflare Dashboard 创建 R2 API Token 时获得
+  accessKeyId: string;
+  secretAccessKey: string;
   bucketName: string;
   endpoint: string;
   publicUrl: string;

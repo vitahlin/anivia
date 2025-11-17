@@ -104,16 +104,19 @@ export function getFullConfig(options?: {
   requiredSecrets.push('SUPABASE_ANON_KEY');
 
   if (!skipCloudflare) {
-    // 支持新的 API Token 方式或旧的 Access Key 方式
-    const hasApiToken = !!process.env.ZILEAN_CLOUDFLARE_R2_TOKEN;
-    const hasAccessKey = !!(process.env.CLOUDFLARE_ACCESS_KEY_ID && process.env.CLOUDFLARE_SECRET_ACCESS_KEY);
+    // 检查 R2 API Token 生成的 Access Key
+    const hasAccessKey = !!(process.env.ZILEAN_CLOUDFLARE_R2_ACCESS_KEY && process.env.ZILEAN_CLOUDFLARE_R2_SECRET_KEY);
 
-    if (!hasApiToken && !hasAccessKey) {
+    if (!hasAccessKey) {
       throw new Error(
-        'Missing Cloudflare R2 credentials. Please provide either:\n' +
-        '  - ZILEAN_CLOUDFLARE_R2_TOKEN (recommended, new API Token method)\n' +
-        '  OR\n' +
-        '  - CLOUDFLARE_ACCESS_KEY_ID and CLOUDFLARE_SECRET_ACCESS_KEY (legacy method)'
+        'Missing Cloudflare R2 credentials. Please provide:\n' +
+        '  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (Access Key ID from R2 API Token)\n' +
+        '  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (Secret Access Key from R2 API Token)\n\n' +
+        'To create R2 API Token:\n' +
+        '  1. Go to Cloudflare Dashboard → R2 → Manage R2 API Tokens\n' +
+        '  2. Create API Token → Select permissions (Object Read & Write)\n' +
+        '  3. Copy the Access Key ID and Secret Access Key\n' +
+        '  4. Set them as ZILEAN_CLOUDFLARE_R2_ACCESS_KEY and ZILEAN_CLOUDFLARE_R2_SECRET_KEY'
       );
     }
   }
@@ -166,9 +169,8 @@ export function getFullConfig(options?: {
     },
     cloudflare: {
       accountId: DEFAULT_CONFIG.cloudflare.accountId,
-      apiToken: process.env.ZILEAN_CLOUDFLARE_R2_TOKEN,
-      accessKeyId: process.env.CLOUDFLARE_ACCESS_KEY_ID,
-      secretAccessKey: process.env.CLOUDFLARE_SECRET_ACCESS_KEY,
+      accessKeyId: process.env.ZILEAN_CLOUDFLARE_R2_ACCESS_KEY!,
+      secretAccessKey: process.env.ZILEAN_CLOUDFLARE_R2_SECRET_KEY!,
       bucketName: DEFAULT_CONFIG.cloudflare.bucketName,
       endpoint: DEFAULT_CONFIG.cloudflare.endpoint,
       publicUrl: DEFAULT_CONFIG.cloudflare.publicUrl,
@@ -204,12 +206,8 @@ export function printConfig() {
   console.log('');
   console.log('Cloudflare R2:');
   console.log(`  Account ID: ${config.cloudflare.accountId}`);
-  if (config.cloudflare.apiToken) {
-    console.log(`  API Token: ${maskSecret(config.cloudflare.apiToken)} (新方式)`);
-  } else {
-    console.log(`  Access Key ID: ${maskSecret(config.cloudflare.accessKeyId || '')} (旧方式)`);
-    console.log(`  Secret Access Key: ${maskSecret(config.cloudflare.secretAccessKey || '')} (旧方式)`);
-  }
+  console.log(`  Access Key ID: ${maskSecret(config.cloudflare.accessKeyId)}`);
+  console.log(`  Secret Access Key: ${maskSecret(config.cloudflare.secretAccessKey)}`);
   console.log(`  Bucket Name: ${config.cloudflare.bucketName}`);
   console.log(`  Endpoint: ${config.cloudflare.endpoint}`);
   console.log(`  Public URL: ${config.cloudflare.publicUrl}`);

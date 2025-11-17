@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { CloudflareConfig, NotionImage } from '../types';
 import { Logger } from '../utils/logger';
 import { CloudflareError } from '../errors/cloudflare-error';
@@ -16,56 +16,37 @@ export class CloudflareService {
     this.config = config;
     this.logger = logger;
 
-    // 验证配置：支持新的 API Token 或旧的 Access Key 方式
-    const hasApiToken = !!config.apiToken;
-    const hasAccessKey = !!(config.accessKeyId && config.secretAccessKey);
-
-    if (!hasApiToken && !hasAccessKey) {
-      this.logger.error('❌ Cloudflare 认证配置缺失');
-      this.logger.error(`  API Token (ZILEAN_CLOUDFLARE_R2_TOKEN): ${config.apiToken ? '已设置' : '未设置'}`);
+    // 验证配置
+    if (!config.accessKeyId || !config.secretAccessKey) {
+      this.logger.error('❌ Cloudflare R2 认证配置缺失');
       this.logger.error(`  Access Key ID: ${config.accessKeyId ? '已设置' : '未设置'}`);
       this.logger.error(`  Secret Access Key: ${config.secretAccessKey ? '已设置' : '未设置'}`);
       throw new Error(
-        'Cloudflare R2 认证配置缺失。请提供以下任一方式：\n' +
-        '  - ZILEAN_CLOUDFLARE_R2_TOKEN (推荐，新的 API Token 方式)\n' +
-        '  或\n' +
-        '  - CLOUDFLARE_ACCESS_KEY_ID 和 CLOUDFLARE_SECRET_ACCESS_KEY (旧方式)'
+        'Cloudflare R2 认证配置缺失。请提供：\n' +
+        '  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)\n' +
+        '  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)\n\n' +
+        '如何创建 R2 API Token：\n' +
+        '  1. 访问 Cloudflare Dashboard → R2 → Manage R2 API Tokens\n' +
+        '  2. 点击 Create API Token → 选择权限 (Object Read & Write)\n' +
+        '  3. 创建后会显示 Access Key ID 和 Secret Access Key，请妥善保存\n' +
+        '  4. 将它们设置为环境变量 ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 和 ZILEAN_CLOUDFLARE_R2_SECRET_KEY'
       );
     }
 
-    this.logger.debug(`🔧 初始化 Cloudflare S3 客户端:`);
+    this.logger.debug(`🔧 初始化 Cloudflare R2 S3 客户端:`);
     this.logger.debug(`  Endpoint: ${config.endpoint}`);
     this.logger.debug(`  Bucket: ${config.bucketName}`);
+    this.logger.debug(`  Access Key ID: ${config.accessKeyId.substring(0, 8)}...`);
 
-    if (hasApiToken) {
-      this.logger.debug(`  认证方式: API Token (新方式)`);
-      this.logger.debug(`  API Token: ${config.apiToken!.substring(0, 8)}...`);
-
-      // 使用新的 API Token 方式
-      // Cloudflare R2 的 API Token 可以直接作为 Access Key ID 使用
-      // Secret Access Key 使用相同的 token
-      this.s3Client = new S3Client({
-        region: 'auto',
-        endpoint: config.endpoint,
-        credentials: {
-          accessKeyId: config.apiToken!,
-          secretAccessKey: config.apiToken!,
-        },
-      });
-    } else {
-      this.logger.debug(`  认证方式: Access Key (旧方式)`);
-      this.logger.debug(`  Access Key ID: ${config.accessKeyId!.substring(0, 8)}...`);
-
-      // 使用旧的 Access Key 方式
-      this.s3Client = new S3Client({
-        region: 'auto',
-        endpoint: config.endpoint,
-        credentials: {
-          accessKeyId: config.accessKeyId!,
-          secretAccessKey: config.secretAccessKey!,
-        },
-      });
-    }
+    // 使用 R2 API Token 生成的 Access Key ID 和 Secret Access Key
+    this.s3Client = new S3Client({
+      region: 'auto',
+      endpoint: config.endpoint,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+    });
   }
 
   async processImages(images: NotionImage[]): Promise<NotionImage[]> {
@@ -145,13 +126,9 @@ export class CloudflareService {
       if (error.$metadata?.httpStatusCode === 401) {
         this.logger.error(`🚨 Cloudflare R2 认证失败 (401 Unauthorized)`);
         this.logger.error(`  请检查以下配置:`);
-        if (this.config.apiToken) {
-          this.logger.error(`  - ZILEAN_CLOUDFLARE_R2_TOKEN 是否正确（当前使用新的 API Token 方式）`);
-          this.logger.error(`  - API Token 是否有 R2 的读写权限`);
-        } else {
-          this.logger.error(`  - CLOUDFLARE_ACCESS_KEY_ID 是否正确（当前使用旧的 Access Key 方式）`);
-          this.logger.error(`  - CLOUDFLARE_SECRET_ACCESS_KEY 是否正确`);
-        }
+        this.logger.error(`  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 是否正确`);
+        this.logger.error(`  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY 是否正确`);
+        this.logger.error(`  - R2 API Token 是否有读写权限`);
         this.logger.error(`  - Bucket 名称是否正确: ${this.config.bucketName}`);
         this.logger.error(`  - Endpoint 是否正确: ${this.config.endpoint}`);
         this.logger.error(`  - API Token/Access Key 是否已过期或被撤销`);
@@ -281,5 +258,113 @@ export class CloudflareService {
 
   clearUploadedImages(): void {
     this.uploadedImages.clear();
+  }
+
+  /**
+   * 验证 Cloudflare R2 配置是否正确
+   * 通过尝试列出 bucket 中的对象来验证连接和权限
+   */
+  async verifyConfiguration(): Promise<{
+    success: boolean;
+    message: string;
+    details: {
+      endpoint: string;
+      bucketName: string;
+      publicUrl: string;
+      accessKeyId: string;
+      canConnect: boolean;
+      canRead: boolean;
+      error?: string;
+    };
+  }> {
+    const details = {
+      endpoint: this.config.endpoint,
+      bucketName: this.config.bucketName,
+      publicUrl: this.config.publicUrl,
+      accessKeyId: `${this.config.accessKeyId.substring(0, 8)}...`,
+      canConnect: false,
+      canRead: false,
+    };
+
+    try {
+      this.logger.info('🔍 开始验证 Cloudflare R2 配置...');
+      this.logger.info(`  Endpoint: ${details.endpoint}`);
+      this.logger.info(`  Bucket: ${details.bucketName}`);
+      this.logger.info(`  Access Key ID: ${details.accessKeyId}`);
+
+      // 尝试列出 bucket 中的对象（最多 1 个）来验证连接和权限
+      // 这比 HeadObject 更可靠，因为不需要知道具体的对象名称
+      try {
+        const listCommand = new ListObjectsV2Command({
+          Bucket: this.config.bucketName,
+          MaxKeys: 1,
+          Prefix: 'images/', // 只列出 images/ 目录下的对象
+        });
+
+        const response = await this.s3Client.send(listCommand);
+
+        // 如果能成功列出对象（即使是空列表），说明连接和权限都正常
+        details.canConnect = true;
+        details.canRead = true;
+
+        if (response.Contents && response.Contents.length > 0) {
+          this.logger.info(`✅ 连接成功！找到 ${response.KeyCount || 0} 个对象`);
+        } else {
+          this.logger.info('✅ 连接成功！Bucket 为空或 images/ 目录下没有对象');
+        }
+      } catch (error: any) {
+        this.logger.debug(`验证错误详情:`, error);
+
+        if (error.$metadata?.httpStatusCode === 401) {
+          // 401 认证失败
+          details.canConnect = true;
+          details.canRead = false;
+          throw new Error('认证失败 (401 Unauthorized)。请检查 API Token 或 Access Key 是否正确。');
+        } else if (error.$metadata?.httpStatusCode === 403) {
+          // 403 权限不足
+          details.canConnect = true;
+          details.canRead = false;
+          throw new Error('权限不足 (403 Forbidden)。请检查 API Token 或 Access Key 是否有 R2 读写权限。');
+        } else if (error.name === 'NoSuchBucket' || error.Code === 'NoSuchBucket') {
+          // Bucket 不存在
+          details.canConnect = true;
+          details.canRead = false;
+          throw new Error(`Bucket "${this.config.bucketName}" 不存在。请检查 Bucket 名称是否正确。`);
+        } else {
+          // 其他错误 - 提供更详细的错误信息
+          const errorMessage = error.message || error.name || 'Unknown error';
+          const statusCode = error.$metadata?.httpStatusCode;
+          const errorCode = error.Code || error.code;
+
+          let detailedMessage = `连接或验证失败: ${errorMessage}`;
+          if (statusCode) {
+            detailedMessage += ` (HTTP ${statusCode})`;
+          }
+          if (errorCode) {
+            detailedMessage += ` [${errorCode}]`;
+          }
+
+          throw new Error(detailedMessage);
+        }
+      }
+
+      return {
+        success: true,
+        message: '✅ Cloudflare R2 配置验证成功！',
+        details,
+      };
+    } catch (error: any) {
+      this.logger.error('❌ Cloudflare R2 配置验证失败');
+      this.logger.error(`  错误: ${error.message}`);
+
+      return {
+        success: false,
+        message: `❌ Cloudflare R2 配置验证失败: ${error.message}`,
+        details: {
+          ...details,
+          error: error.message,
+        },
+      };
+    }
   }
 }

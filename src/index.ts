@@ -612,6 +612,109 @@ program
     }
   });
 
+// Verify Cloudflare configuration
+program
+  .command('verify-cloudflare')
+  .description('Verify Cloudflare R2 configuration and connection')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (options) => {
+    try {
+      const config = getConfig();
+      const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
+
+      logger.info('╔══════════════════════════════════════════════════════════════════════╗');
+      logger.info('║           验证 Cloudflare R2 配置                                      ║');
+      logger.info('╚══════════════════════════════════════════════════════════════════════╝');
+      logger.info('');
+
+      // 显示配置信息
+      logger.info('📋 当前配置:');
+      logger.info(`  Account ID: ${config.cloudflare.accountId}`);
+      logger.info(`  Bucket Name: ${config.cloudflare.bucketName}`);
+      logger.info(`  Endpoint: ${config.cloudflare.endpoint}`);
+      logger.info(`  Public URL: ${config.cloudflare.publicUrl}`);
+      logger.info(`  Access Key ID: ${config.cloudflare.accessKeyId.substring(0, 8)}...`);
+      logger.info(`  Secret Access Key: ${config.cloudflare.secretAccessKey.substring(0, 8)}...`);
+
+      logger.info('');
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      logger.info('');
+
+      // 导入 CloudflareService
+      const { CloudflareService } = await import('./services/cloudflare');
+      const cloudflareService = new CloudflareService(config.cloudflare, logger);
+
+      // 执行验证
+      const result = await cloudflareService.verifyConfiguration();
+
+      logger.info('');
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      logger.info('');
+      logger.info('📊 验证结果:');
+      logger.info(`  状态: ${result.success ? '✅ 成功' : '❌ 失败'}`);
+      logger.info(`  消息: ${result.message}`);
+      logger.info('');
+      logger.info('详细信息:');
+      logger.info(`  Endpoint: ${result.details.endpoint}`);
+      logger.info(`  Bucket: ${result.details.bucketName}`);
+      logger.info(`  Public URL: ${result.details.publicUrl}`);
+      logger.info(`  Access Key ID: ${result.details.accessKeyId}`);
+      logger.info(`  可以连接: ${result.details.canConnect ? '✅ 是' : '❌ 否'}`);
+      logger.info(`  可以读取: ${result.details.canRead ? '✅ 是' : '❌ 否'}`);
+
+      if (result.details.error) {
+        logger.info(`  错误信息: ${result.details.error}`);
+      }
+
+      logger.info('');
+      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      if (!result.success) {
+        logger.info('');
+        logger.info('💡 故障排查建议:');
+        logger.info('');
+        logger.info('1. 检查环境变量是否正确设置:');
+        logger.info('   - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)');
+        logger.info('   - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)');
+        logger.info('   - CLOUDFLARE_ACCOUNT_ID');
+        logger.info('   - CLOUDFLARE_BUCKET_NAME (可选，默认: zilean)');
+        logger.info('');
+        logger.info('2. 如何创建 R2 API Token:');
+        logger.info('   - 访问 Cloudflare Dashboard → R2 → Manage R2 API Tokens');
+        logger.info('   - 点击 Create API Token → 选择权限（需要 Object Read & Write）');
+        logger.info('   - 创建后会显示 Access Key ID 和 Secret Access Key');
+        logger.info('   - 将 Access Key ID 设置为 ZILEAN_CLOUDFLARE_R2_ACCESS_KEY');
+        logger.info('   - 将 Secret Access Key 设置为 ZILEAN_CLOUDFLARE_R2_SECRET_KEY');
+        logger.info('');
+        logger.info('3. 检查 API Token 权限:');
+        logger.info('   - 确保有 R2 的读写权限');
+        logger.info('   - 确保 Token 未过期或被撤销');
+        logger.info('');
+        logger.info('4. 检查 Bucket 配置:');
+        logger.info('   - 确保 Bucket 名称正确');
+        logger.info('   - 确保 Bucket 存在于指定的 Account 下');
+        logger.info('');
+        logger.info('5. 检查网络连接:');
+        logger.info('   - 确保可以访问 Cloudflare R2 服务');
+        logger.info('   - 检查防火墙或代理设置');
+        logger.info('');
+
+        process.exit(1);
+      }
+
+      logger.info('');
+      logger.info('🎉 Cloudflare R2 配置验证成功！可以正常使用。');
+      logger.info('');
+
+    } catch (error: any) {
+      console.error('❌ 验证过程中发生错误:', error.message);
+      if (options.verbose) {
+        console.error(error);
+      }
+      process.exit(1);
+    }
+  });
+
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
