@@ -28,8 +28,11 @@ export class SyncService {
     this.imageProcessor = new ImageProcessor(logger);
   }
 
-  async syncPage(pageId: string): Promise<SyncResult> {
+  async syncPage(pageId: string, ignoreUpdateTime: boolean = false): Promise<SyncResult> {
     this.logger.info(`开始同步页面: ${pageId}`);
+    if (ignoreUpdateTime) {
+      this.logger.info(`⚠️  忽略更新时间检查，强制同步`);
+    }
     let imagesProcessed = 0;
 
     // Step 0: 检查页面是否需要同步
@@ -51,10 +54,10 @@ export class SyncService {
       };
     }
 
-    // 检查是否需要更新
+    // 检查是否需要更新（除非 ignoreUpdateTime 为 true）
     const existingPage = await this.supabaseService.getPageById(cleanPageId);
 
-    if (existingPage) {
+    if (existingPage && !ignoreUpdateTime) {
       // 获取 Notion 页面的最后编辑时间
       const notionLastEdited = new Date(pageData.lastEditedTime);
       const supabaseLastEdited = new Date(existingPage.last_edited_time);
@@ -71,6 +74,8 @@ export class SyncService {
       }
 
       this.logger.info(`🔄 页面已更新，继续同步 (Notion: ${pageData.lastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
+    } else if (existingPage && ignoreUpdateTime) {
+      this.logger.info(`🔄 忽略更新时间，强制同步已存在的页面`);
     } else {
       this.logger.info(`🆕 新页面，继续同步`);
     }

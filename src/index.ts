@@ -450,6 +450,7 @@ program
   .argument('[startTime]', 'Start time in format yyyyMMddHHmmss (default: 20000101000000)')
   .argument('[endTime]', 'End time in format yyyyMMddHHmmss (default: current time)')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('--ignore-update-time', 'Ignore update time check and force sync all pages', false)
   .action(async (databaseId: string, startTime: string | undefined, endTime: string | undefined, options) => {
     try {
       const config = getConfig();
@@ -509,6 +510,9 @@ program
       logger.info(`📊 数据库 ID: ${databaseId}`);
       logger.info(`⏰ 开始时间: ${toBeijingTimeString(start)}`);
       logger.info(`⏰ 结束时间: ${toBeijingTimeString(end)}`);
+      if (options.ignoreUpdateTime) {
+        logger.info(`⚠️  忽略更新时间检查: 是`);
+      }
 
       const notionService = new NotionService(config.notion, logger);
       const pages = await notionService.queryDatabaseByTimeRange(
@@ -541,7 +545,7 @@ program
         logger.info(`   ID: ${page.id}`);
 
         try {
-          const result = await syncService.syncPage(page.id);
+          const result = await syncService.syncPage(page.id, options.ignoreUpdateTime);
           if (result.success) {
             if (result.skipped) {
               skippedCount++;

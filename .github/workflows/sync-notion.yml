@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: ''
+      ignoreUpdateTime:
+        description: '忽略更新时间检查，强制同步所有页面'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   sync:
@@ -93,11 +98,15 @@ jobs:
 
           START_TIME="${{ steps.time.outputs.start_time }}"
           END_TIME="${{ steps.time.outputs.end_time }}"
+          IGNORE_UPDATE_TIME="${{ github.event.inputs.ignoreUpdateTime }}"
 
           echo "=========================================="
           echo "开始同步 Notion 数据库"
           echo "时间范围: $START_TIME - $END_TIME"
           echo "数据库数量: ${#DATABASES[@]}"
+          if [ "$IGNORE_UPDATE_TIME" = "true" ]; then
+            echo "⚠️  忽略更新时间检查: 是"
+          fi
           echo "=========================================="
           echo ""
 
@@ -123,8 +132,14 @@ jobs:
             echo "数据库 ID: $DB_ID"
             echo "=========================================="
 
+            # 构建同步命令
+            SYNC_CMD="bun run dist/index.js sync-updated-page \"$DB_ID\" \"$START_TIME\" \"$END_TIME\""
+            if [ "$IGNORE_UPDATE_TIME" = "true" ]; then
+              SYNC_CMD="$SYNC_CMD --ignore-update-time"
+            fi
+
             # 执行同步命令并捕获输出
-            SYNC_OUTPUT=$(bun run dist/index.js sync-updated-page "$DB_ID" "$START_TIME" "$END_TIME" 2>&1)
+            SYNC_OUTPUT=$(eval $SYNC_CMD 2>&1)
             SYNC_EXIT_CODE=$?
 
             echo "$SYNC_OUTPUT"
