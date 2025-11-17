@@ -118,6 +118,9 @@ jobs:
           FAILED_DBS=()
           HAS_UPDATES=false
 
+          # 创建临时文件用于收集每个数据库的 has_updates 状态
+          TEMP_OUTPUT_FILE=$(mktemp)
+
           # 遍历所有数据库
           INDEX=1
           for DB_ID in "${DATABASES[@]}"; do
@@ -134,7 +137,8 @@ jobs:
             echo "=========================================="
 
             # 构建同步命令
-            SYNC_CMD="bun run dist/index.js sync-updated-page \"$DB_ID\" \"$START_TIME\" \"$END_TIME\""
+            # 使用临时文件收集每个数据库的输出
+            SYNC_CMD="GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" bun run dist/index.js sync-updated-page \"$DB_ID\" \"$START_TIME\" \"$END_TIME\""
             if [ "$IGNORE_UPDATE_TIME" = "true" ]; then
               SYNC_CMD="$SYNC_CMD --ignore-update-time"
             fi
@@ -149,10 +153,14 @@ jobs:
               echo "✅ 数据库同步成功"
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
 
-              # 检查是否有数据更新
-              if echo "$SYNC_OUTPUT" | grep -q "has_updates::true"; then
+              # 检查临时文件中是否有 has_updates=true
+              if grep -q "has_updates=true" "$TEMP_OUTPUT_FILE"; then
                 HAS_UPDATES=true
+                echo "🔔 检测到此数据库有数据更新"
               fi
+
+              # 清空临时文件，为下一个数据库做准备
+              > "$TEMP_OUTPUT_FILE"
             else
               echo "❌ 数据库同步失败"
               FAIL_COUNT=$((FAIL_COUNT + 1))
@@ -187,8 +195,12 @@ jobs:
           echo "✅ 所有数据库同步成功！"
           echo "=========================================="
 
+          # 清理临时文件
+          rm -f "$TEMP_OUTPUT_FILE"
+
           # 设置输出变量
           echo "has_updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
+          echo "📊 最终状态: has_updates=$HAS_UPDATES"
 
       - name: Notify zilean to update submodule (data updated)
         if: steps.sync.outputs.has_updates == 'true'
