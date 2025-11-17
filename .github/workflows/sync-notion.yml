@@ -79,7 +79,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_ACCESS_KEY_ID }}
           CLOUDFLARE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_SECRET_ACCESS_KEY }}
-          NOTION_DATABASE_IDS: ${{ secrets.NOTION_DATABASE_IDS }}
+          NOTION_DATABASE_IDS: ${{ vars.NOTION_DATABASE_IDS }}
         run: |
           # 从环境变量读取数据库 ID 列表（逗号分隔）
           # 例如：NOTION_DATABASE_IDS="id1,id2,id3"
