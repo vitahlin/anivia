@@ -199,10 +199,8 @@ export class ExportService {
       content += '---\n\n';
     }
 
-    // 添加标题
-    content += `# ${page.title}\n\n`;
-
-    // 添加正文内容
+    // 直接使用 Supabase 中的 content，不添加额外的标题
+    // content 字段已经包含了从 Notion 转换的完整 Markdown 内容
     content += page.content;
 
     return content;
