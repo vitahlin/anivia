@@ -132,13 +132,7 @@ export class ExportService {
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
-  /**
-   * 获取当前北京时间
-   */
-  private getCurrentBeijingTime(): string {
-    const now = new Date();
-    return this.formatBeijingTime(now.toISOString());
-  }
+
 
   /**
    * 生成 Markdown 文件内容
@@ -153,7 +147,6 @@ export class ExportService {
       content += `notion_page_id: ${page.notion_page_id}\n`;
       content += `created_time: ${this.formatBeijingTime(page.created_time)}\n`;
       content += `last_edited_time: ${this.formatBeijingTime(page.last_edited_time)}\n`;
-      content += `exported_time: ${this.getCurrentBeijingTime()}\n`;
       content += `handler: ${page.handler || ''}\n`;
       content += `published: ${page.published}\n`;
       content += `draft: ${page.draft}\n`;
