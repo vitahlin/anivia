@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { CloudflareConfig, NotionImage } from '../types';
+import { CloudflareConfig, NotionImage, ImageType } from '../types';
 import { Logger } from '../utils/logger';
 import { CloudflareError } from '../errors/cloudflare-error';
 import fetch from 'node-fetch';
@@ -67,9 +67,9 @@ export class CloudflareService {
         };
 
         // Check if image already exists in Cloudflare
-        const existingUrl = await this.checkImageExists(contentHash);
+        const existingUrl = await this.checkImageExists(contentHash, image.type);
         if (existingUrl) {
-          this.logger.debug(`[${index + 1}/${images.length}] ✅ 图片已存在: ${image.filename}, 现有地址: ${existingUrl}`);
+          this.logger.debug(`[${index + 1}/${images.length}] ✅ 图片已存在: ${image.filename} (${image.type}), 现有地址: ${existingUrl}`);
           return {
             ...imageWithHash,
             cloudflareUrl: existingUrl
@@ -99,9 +99,26 @@ export class CloudflareService {
     return processedImages;
   }
 
-  private async checkImageExists(contentHash: string): Promise<string | null> {
+  /**
+   * 根据图片类型获取目录路径
+   */
+  private getImageDirectory(imageType: ImageType): string {
+    switch (imageType) {
+      case 'markdown':
+        return 'posts';
+      case 'featured':
+        return 'featured';
+      case 'gallery':
+        return 'gallery';
+      default:
+        return 'images'; // 默认目录（向后兼容）
+    }
+  }
+
+  private async checkImageExists(contentHash: string, imageType: ImageType): Promise<string | null> {
     try {
-      const key = `images/${contentHash}.webp`;
+      const directory = this.getImageDirectory(imageType);
+      const key = `${directory}/${contentHash}.webp`;
 
       const headResponse = await this.s3Client.send(new HeadObjectCommand({
         Bucket: this.config.bucketName,
@@ -118,7 +135,7 @@ export class CloudflareService {
       return publicUrl;
     } catch (error: any) {
       if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
-        this.logger.debug(`图片不存在于 Cloudflare: images/${contentHash}.webp`);
+        this.logger.debug(`图片不存在于 Cloudflare: ${this.getImageDirectory(imageType)}/${contentHash}.webp`);
         return null;
       }
 
@@ -204,10 +221,12 @@ export class CloudflareService {
     this.logger.debug(`📊 图片压缩完成: ${originalSize} 字节 -> ${webpSize} 字节 (节省 ${compressionRatio}%)`);
 
     // Generate key using content hash for deduplication, with .webp extension
-    const key = `images/${image.hash}.webp`;
+    // 根据图片类型选择目录
+    const directory = this.getImageDirectory(image.type);
+    const key = `${directory}/${image.hash}.webp`;
 
     // Upload to Cloudflare R2
-    this.logger.debug(`☁️ 正在上传到 Cloudflare R2: ${key}`);
+    this.logger.debug(`☁️ 正在上传到 Cloudflare R2: ${key} (类型: ${image.type})`);
     try {
       await this.s3Client.send(new PutObjectCommand({
         Bucket: this.config.bucketName,
@@ -222,6 +241,7 @@ export class CloudflareService {
           webpSize: webpSize.toString(),
           compressionRatio: compressionRatio,
           contentHash: image.hash, // 基于内容的哈希
+          imageType: image.type, // 图片类型
           uploadedAt: new Date().toISOString(),
           convertedToWebp: 'true'
         }
@@ -239,9 +259,10 @@ export class CloudflareService {
     return cloudflareUrl;
   }
 
-  async deleteImage(hash: string): Promise<void> {
+  async deleteImage(hash: string, imageType: ImageType = 'markdown'): Promise<void> {
     try {
-      const key = `images/${hash}.webp`;
+      const directory = this.getImageDirectory(imageType);
+      const key = `${directory}/${hash}.webp`;
 
       // Note: DeleteObjectCommand would be used here, but we're being conservative
       // and not implementing deletion to avoid accidental data loss
