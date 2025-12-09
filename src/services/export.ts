@@ -113,6 +113,14 @@ export class ExportService {
   }
 
   /**
+   * 转义 YAML 字符串中的双引号和反斜杠
+   */
+  private escapeYamlString(value: string): string {
+    // 转义反斜杠和双引号
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  /**
    * 将 ISO 时间字符串转换为北京时间格式
    */
   private formatBeijingTime(isoString: string): string {
@@ -143,7 +151,7 @@ export class ExportService {
     // 添加 Front Matter（元数据）
     if (includeMetadata) {
       content += '---\n';
-      content += `title: ${page.title}\n`;
+      content += `title: "${this.escapeYamlString(page.title)}"\n`;
       content += `notion_page_id: ${page.notion_page_id}\n`;
       content += `created_time: ${this.formatBeijingTime(page.created_time)}\n`;
       content += `last_edited_time: ${this.formatBeijingTime(page.last_edited_time)}\n`;
@@ -155,19 +163,19 @@ export class ExportService {
       if (page.categories && page.categories.length > 0) {
         content += `categories:\n`;
         page.categories.forEach(category => {
-          content += `  - ${category}\n`;
+          content += `  - "${this.escapeYamlString(category)}"\n`;
         });
       }
 
       if (page.tags && page.tags.length > 0) {
         content += `tags:\n`;
         page.tags.forEach(tag => {
-          content += `  - ${tag}\n`;
+          content += `  - "${this.escapeYamlString(tag)}"\n`;
         });
       }
 
       if (page.excerpt) {
-        content += `excerpt: ${page.excerpt}\n`;
+        content += `excerpt: "${this.escapeYamlString(page.excerpt)}"\n`;
       }
 
       if (page.featured_img) {
