@@ -2,8 +2,8 @@ name: Sync Notion to Supabase
 
 on:
   schedule:
-    # 每 3 小时执行一次（UTC 时间）
-    - cron: '0 */3 * * *'
+    # 每 12 小时执行一次（UTC 时间：0:00 和 12:00）
+    - cron: '0 */12 * * *'
 
   push:
     branches:
@@ -13,10 +13,10 @@ on:
     # 支持手动触发
     inputs:
       days:
-        description: '同步最近多少天的页面（留空则使用默认的3小时）'
+        description: '同步最近多少天的页面（留空则默认同步最近 1 天）'
         required: false
         type: string
-        default: ''
+        default: '1'
       ignoreUpdateTime:
         description: '忽略更新时间检查，强制同步所有页面'
         required: false
@@ -54,7 +54,7 @@ jobs:
           # 转换为北京时间格式
           END_TIME=$(date -u -d "@$BEIJING_TIMESTAMP" +"%Y%m%d%H%M%S")
 
-          # 判断是手动触发且有输入天数，还是定时触发（默认3小时）
+          # 判断是手动触发且有输入天数，还是定时触发（默认12小时）
           DAYS="${{ github.event.inputs.days }}"
 
           if [ -n "$DAYS" ] && [ "$DAYS" != "0" ]; then
@@ -64,10 +64,10 @@ jobs:
             START_TIME=$(date -u -d "@$START_TIMESTAMP" +"%Y%m%d%H%M%S")
             echo "📅 手动触发：同步最近 $DAYS 天的页面"
           else
-            # 定时触发或手动触发但未输入天数：默认 3 小时
-            START_TIMESTAMP=$((BEIJING_TIMESTAMP - 10800))  # 3小时 = 10800秒
+            # 定时触发或手动触发但未输入天数：默认 12 小时
+            START_TIMESTAMP=$((BEIJING_TIMESTAMP - 43200))  # 12小时 = 43200秒
             START_TIME=$(date -u -d "@$START_TIMESTAMP" +"%Y%m%d%H%M%S")
-            echo "⏰ 定时触发：同步最近 3 小时的页面"
+            echo "⏰ 定时触发：同步最近 12 小时的页面"
           fi
 
           echo "start_time=$START_TIME" >> $GITHUB_OUTPUT
