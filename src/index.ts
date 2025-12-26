@@ -587,6 +587,13 @@ program
 
       logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
+      // 更新配置表中的最后同步时间（防止 Supabase 数据库休眠）
+      if (pages.length > 0) {
+        const supabaseService = new SupabaseService(config.supabase, logger);
+        await supabaseService.updateLastSyncTime();
+        logger.info('✅ 已更新最后同步时间');
+      }
+
       // 输出特殊标记，用于 GitHub Actions 检测是否有数据更新
       // 使用新的 GitHub Actions 输出方式（Environment Files）
       if (successCount > 0) {

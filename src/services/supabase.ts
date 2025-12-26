@@ -6,6 +6,7 @@ export class SupabaseService {
   private client: SupabaseClient;
   private logger: Logger;
   private tableName = 'anivia_notion_page';
+  private configTableName = 'anivia_config';
 
   constructor(config: SupabaseConfig, logger: Logger) {
     this.client = createClient(config.url, config.anonKey);
@@ -289,6 +290,50 @@ export class SupabaseService {
       result.errors.push(`验证过程出错: ${errorMessage}`);
       this.logger.error('❌ 验证过程出错:', error);
       return result;
+    }
+  }
+
+  /**
+   * 更新配置表中的最后同步时间
+   * 用于防止 Supabase 免费版因长时间无操作而归档数据库
+   */
+  async updateLastSyncTime(): Promise<void> {
+    try {
+      // 获取当前 UTC 时间
+      const utcNow = new Date();
+
+      // 转换为北京时间（UTC+8）
+      const beijingTime = new Date(utcNow.getTime() + 8 * 60 * 60 * 1000);
+
+      // 格式化为 ISO 8601 格式，带时区信息：yyyy-MM-ddTHH:mm:ss+08:00
+      const year = beijingTime.getUTCFullYear();
+      const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+      const hours = String(beijingTime.getUTCHours()).padStart(2, '0');
+      const minutes = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+
+      const beijingTimeStr = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+08:00`;
+
+      const { error } = await this.client
+        .from(this.configTableName)
+        .upsert({
+          config_key: 'last_notion_sync_time',
+          config_value: beijingTimeStr,
+          description: '最近一次 Notion 页面同步时间（北京时间，ISO 8601 格式）',
+          updated_at: utcNow.toISOString()
+        }, {
+          onConflict: 'config_key'
+        });
+
+      if (error) {
+        this.logger.warn('⚠️  更新配置表失败（不影响主流程）:', error.message);
+      } else {
+        this.logger.debug(`✅ 已更新最后同步时间: ${beijingTimeStr}`);
+      }
+    } catch (error) {
+      // 配置表更新失败不应该影响主流程
+      this.logger.warn('⚠️  更新配置表时出错（不影响主流程）:', error);
     }
   }
 }

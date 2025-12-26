@@ -53,6 +53,39 @@ CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_created_time ON anivia_notion_
 CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_last_edited_time ON anivia_notion_page(last_edited_time);
 
 -- =====================================================
+-- 创建配置表：anivia_config
+-- =====================================================
+-- 用于保存系统配置信息，防止 Supabase 免费版因长时间无操作而归档数据库
+CREATE TABLE IF NOT EXISTS anivia_config (
+  id BIGSERIAL PRIMARY KEY,
+  config_key TEXT UNIQUE NOT NULL,
+  config_value TEXT NOT NULL,
+  description TEXT,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 添加表和字段注释
+COMMENT ON TABLE anivia_config IS '系统配置表，用于保存配置信息和防止数据库休眠';
+COMMENT ON COLUMN anivia_config.id IS '主键，自增 ID';
+COMMENT ON COLUMN anivia_config.config_key IS '配置键（唯一）';
+COMMENT ON COLUMN anivia_config.config_value IS '配置值';
+COMMENT ON COLUMN anivia_config.description IS '配置描述';
+COMMENT ON COLUMN anivia_config.updated_at IS '最后更新时间';
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_anivia_config_key ON anivia_config(config_key);
+CREATE INDEX IF NOT EXISTS idx_anivia_config_updated_at ON anivia_config(updated_at);
+
+-- 插入初始配置：最近一次 Notion 同步时间
+INSERT INTO anivia_config (config_key, config_value, description)
+VALUES (
+  'last_notion_sync_time',
+  NOW()::TEXT,
+  '最近一次 Notion 页面同步时间'
+)
+ON CONFLICT (config_key) DO NOTHING;
+
+-- =====================================================
 -- 验证表创建成功
 -- =====================================================
 -- 执行以下查询来验证表是否创建成功：
@@ -60,3 +93,6 @@ CREATE INDEX IF NOT EXISTS idx_anivia_notion_page_last_edited_time ON anivia_not
 -- FROM information_schema.columns
 -- WHERE table_name = 'anivia_notion_page'
 -- ORDER BY ordinal_position;
+
+-- 验证配置表：
+-- SELECT * FROM anivia_config;
