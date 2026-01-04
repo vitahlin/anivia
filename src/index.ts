@@ -524,75 +524,74 @@ program
       logger.info('');
       logger.info(`✅ 找到 ${pages.length} 个更新的页面`);
 
-      if (pages.length === 0) {
-        logger.info('没有需要同步的页面');
-        return;
-      }
-
-      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      logger.info('🚀 开始同步页面到 Supabase...');
-      logger.info('');
-
-      const syncService = new SyncService(config, logger);
       let successCount = 0;
       let skippedCount = 0;
       let failCount = 0;
       const errors: string[] = [];
 
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        logger.info(`[${i + 1}/${pages.length}] 同步: ${page.title || '(无标题)'}`);
-        logger.info(`   ID: ${page.id}`);
+      if (pages.length === 0) {
+        logger.info('没有需要同步的页面');
+      } else {
+        logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        logger.info('🚀 开始同步页面到 Supabase...');
+        logger.info('');
 
-        try {
-          const result = await syncService.syncPage(page.id, options.ignoreUpdateTime);
-          if (result.success) {
-            if (result.skipped) {
-              skippedCount++;
-              logger.info(`   ⏭️  跳过 (未更新)`);
+        const syncService = new SyncService(config, logger);
+
+        for (let i = 0; i < pages.length; i++) {
+          const page = pages[i];
+          logger.info(`[${i + 1}/${pages.length}] 同步: ${page.title || '(无标题)'}`);
+          logger.info(`   ID: ${page.id}`);
+
+          try {
+            const result = await syncService.syncPage(page.id, options.ignoreUpdateTime);
+            if (result.success) {
+              if (result.skipped) {
+                skippedCount++;
+                logger.info(`   ⏭️  跳过 (未更新)`);
+              } else {
+                successCount++;
+                logger.info(`   ✅ 成功 (处理 ${result.imagesProcessed} 张图片)`);
+              }
             } else {
-              successCount++;
-              logger.info(`   ✅ 成功 (处理 ${result.imagesProcessed} 张图片)`);
+              failCount++;
+              const errorMsg = `${page.title || page.id}: ${result.message}`;
+              errors.push(errorMsg);
+              logger.error(`   ❌ 失败: ${result.message}`);
             }
-          } else {
+          } catch (error: any) {
             failCount++;
-            const errorMsg = `${page.title || page.id}: ${result.message}`;
+            const errorMsg = `${page.title || page.id}: ${error.message}`;
             errors.push(errorMsg);
-            logger.error(`   ❌ 失败: ${result.message}`);
+            logger.error(`   ❌ 异常: ${error.message}`);
           }
-        } catch (error: any) {
-          failCount++;
-          const errorMsg = `${page.title || page.id}: ${error.message}`;
-          errors.push(errorMsg);
-          logger.error(`   ❌ 异常: ${error.message}`);
+
+          logger.info('');
         }
 
-        logger.info('');
+        logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        logger.info('📊 同步完成统计:');
+        logger.info(`   总计: ${pages.length} 个页面`);
+        logger.info(`   ✅ 成功: ${successCount}`);
+        logger.info(`   ⏭️  跳过: ${skippedCount}`);
+        logger.info(`   ❌ 失败: ${failCount}`);
+
+        if (errors.length > 0) {
+          logger.info('');
+          logger.info('失败详情:');
+          errors.forEach((error, index) => {
+            logger.error(`   ${index + 1}. ${error}`);
+          });
+        }
+
+        logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       }
-
-      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      logger.info('📊 同步完成统计:');
-      logger.info(`   总计: ${pages.length} 个页面`);
-      logger.info(`   ✅ 成功: ${successCount}`);
-      logger.info(`   ⏭️  跳过: ${skippedCount}`);
-      logger.info(`   ❌ 失败: ${failCount}`);
-
-      if (errors.length > 0) {
-        logger.info('');
-        logger.info('失败详情:');
-        errors.forEach((error, index) => {
-          logger.error(`   ${index + 1}. ${error}`);
-        });
-      }
-
-      logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       // 更新配置表中的最后同步时间（防止 Supabase 数据库休眠）
-      if (pages.length > 0) {
-        const supabaseService = new SupabaseService(config.supabase, logger);
-        await supabaseService.updateLastSyncTime();
-        logger.info('✅ 已更新最后同步时间');
-      }
+      // 无论是否有页面需要同步，都更新时间
+      const supabaseService = new SupabaseService(config.supabase, logger);
+      await supabaseService.updateLastSyncTime();
+      logger.info('✅ 已更新最后同步时间');
 
       // 输出特殊标记，用于 GitHub Actions 检测是否有数据更新
       // 使用新的 GitHub Actions 输出方式（Environment Files）
@@ -715,6 +714,34 @@ program
 
     } catch (error: any) {
       console.error('❌ 验证过程中发生错误:', error.message);
+      if (options.verbose) {
+        console.error(error);
+      }
+      process.exit(1);
+    }
+  });
+
+program
+  .command('update-sync-time')
+  .description('Update last sync time in config table (for testing)')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .action(async (options) => {
+    try {
+      const config = getConfig();
+      const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
+
+      logger.info('🔄 更新配置表中的最后同步时间...');
+      logger.info('');
+
+      const supabaseService = new SupabaseService(config.supabase, logger);
+      await supabaseService.updateLastSyncTime();
+
+      logger.info('');
+      logger.info('✅ 配置表更新成功！');
+      logger.info('');
+
+    } catch (error: any) {
+      console.error('❌ 更新配置表失败:', error.message);
       if (options.verbose) {
         console.error(error);
       }

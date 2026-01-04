@@ -13,6 +13,7 @@
     "check-db": "npm run build && node dist/index.js check-db",
     "query-updated-page": "npm run build && node dist/index.js query-updated-page",
     "sync-updated-page": "npm run build && node dist/index.js sync-updated-page",
+    "update-sync-time": "npm run build && node dist/index.js update-sync-time",
     "server": "npm run build && node dist/server.js",
     "server:dev": "ts-node src/server.ts"
   },
