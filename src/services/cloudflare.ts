@@ -1,10 +1,11 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { CloudflareConfig, NotionImage, ImageType } from '../types';
+import { CloudflareConfig, AniviaImage, ImageType } from '../types';
 import { Logger } from '../utils/logger';
 import { CloudflareError } from '../errors/cloudflare-error';
 import fetch from 'node-fetch';
 import sharp from 'sharp';
 import crypto from 'crypto';
+import fs from 'fs';
 
 export class CloudflareService {
   private s3Client: S3Client;
@@ -49,7 +50,7 @@ export class CloudflareService {
     });
   }
 
-  async processImages(images: NotionImage[]): Promise<NotionImage[]> {
+  async processImages(images: AniviaImage[]): Promise<AniviaImage[]> {
     this.logger.info(`🚀 开始并行处理 ${images.length} 张图片...`);
 
     // 并行处理所有图片
@@ -57,8 +58,10 @@ export class CloudflareService {
       try {
         this.logger.debug(`[${index + 1}/${images.length}] 开始处理: ${image.filename}`);
 
-        // 首先下载图片以计算内容哈希
-        const { buffer: originalBuffer, contentHash } = await this.downloadAndHashImage(image.url);
+        // 根据图片来源获取图片内容和哈希
+        const { buffer: originalBuffer, contentHash } = image.source === 'notion'
+          ? await this.downloadAndHashImage(image.url)
+          : await this.readLocalFileAndHash(image.url);
 
         // 更新图片对象的哈希值
         const imageWithHash = {
@@ -181,7 +184,21 @@ export class CloudflareService {
     return { buffer: originalBuffer, contentHash };
   }
 
-  private async uploadImageBuffer(image: NotionImage, originalBuffer: Buffer): Promise<string> {
+  private async readLocalFileAndHash(filePath: string): Promise<{ buffer: Buffer; contentHash: string }> {
+    try {
+      // 读取本地文件
+      const originalBuffer = fs.readFileSync(filePath);
+
+      // 基于图片内容计算哈希
+      const contentHash = crypto.createHash('md5').update(originalBuffer).digest('hex');
+      return { buffer: originalBuffer, contentHash };
+    } catch (error) {
+      this.logger.error(`❌ 读取本地图片失败: ${filePath}`, error);
+      throw new Error(`Failed to read local image: ${filePath}`);
+    }
+  }
+
+  private async uploadImageBuffer(image: AniviaImage, originalBuffer: Buffer): Promise<string> {
     this.logger.debug(`🖼️ 开始处理图片: ${image.filename}`);
     this.logger.debug(`📥 原始 Notion 图片地址: ${image.url}`);
 

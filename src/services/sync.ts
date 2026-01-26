@@ -3,7 +3,7 @@ import { NotionMarkdownConverter } from './notion-markdown';
 import { CloudflareService } from './cloudflare';
 import { SupabaseService } from './supabase';
 import { ImageProcessor } from './image-processor';
-import { AppConfig, SyncResult, NotionPageData, NotionImage } from '../types';
+import { AppConfig, SyncResult, NotionPageData, AniviaImage } from '../types';
 import { Logger } from '../utils/logger';
 import { NotionError } from '../errors/notion-error';
 import { CloudflareError } from '../errors/cloudflare-error';
@@ -89,22 +89,23 @@ export class SyncService {
 
     // Step 3: 从 Markdown 中提取图片
     this.logger.info('Step 3: 提取图片...');
-    const imageUrls = this.imageProcessor.extractImagesFromMarkdown(rawMarkdown);
-    const markdownImages = this.imageProcessor.convertUrlsToNotionImages(imageUrls, 'markdown');
+    const imageUrls = this.imageProcessor.extractNotionImagesFromMarkdown(rawMarkdown);
+    const markdownImages = this.imageProcessor.convertUrlsToAniviaImages(imageUrls, 'markdown');
     this.logger.debug(`📸 从 Markdown 中提取到 ${markdownImages.length} 张图片`);
 
     // Step 4: 提取配图和组图
     this.logger.info('🖼️ Step 4: 提取配图和组图...');
-    const allImages: NotionImage[] = [...markdownImages];
+    const allImages: AniviaImage[] = [...markdownImages];
 
     // 处理配图
     if (pageData.featuredImg) {
-      const featuredImage: NotionImage = {
+      const featuredImage: AniviaImage = {
         url: pageData.featuredImg,
         originalUrl: pageData.featuredImg,
         filename: this.generateFeaturedImageFilename(pageData.featuredImg, pageId),
         hash: '',
-        type: 'featured'
+        type: 'featured',
+        source: 'notion'
       };
       allImages.push(featuredImage);
       this.logger.info(`提取到配图`);
@@ -115,12 +116,13 @@ export class SyncService {
     // 处理组图
     if (pageData.galleryImgs && pageData.galleryImgs.length > 0) {
       pageData.galleryImgs.forEach((url, index) => {
-        const galleryImage: NotionImage = {
+        const galleryImage: AniviaImage = {
           url: url,
           originalUrl: url,
           filename: this.generateGalleryImageFilename(url, pageId, index),
           hash: '',
-          type: 'gallery'
+          type: 'gallery',
+          source: 'notion'
         };
         allImages.push(galleryImage);
       });
@@ -174,7 +176,7 @@ export class SyncService {
    * 上传图片到 Cloudflare
    * 封装图片上传逻辑，统一处理 Markdown 图片和配图
    */
-  private async uploadImagesToCloudflare(images: NotionImage[]): Promise<NotionImage[]> {
+  private async uploadImagesToCloudflare(images: AniviaImage[]): Promise<AniviaImage[]> {
     if (images.length === 0) {
       this.logger.info('📭 没有图片需要上传');
       return [];

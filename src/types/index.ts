@@ -14,18 +14,21 @@ export interface NotionPageData {
   featuredImg: string; // 配图
   galleryImgs: string[]; // 组图
   properties: Record<string, any>;
-  images: NotionImage[];
+  images: AniviaImage[];
 }
 
 export type ImageType = 'markdown' | 'featured' | 'gallery';
 
-export interface NotionImage {
-  url: string;
-  originalUrl: string;
+export type ImageSource = 'notion' | 'local';
+
+export interface AniviaImage {
+  url: string;                    // Notion URL 或本地文件路径
+  originalUrl: string;            // 原始 URL 或本地文件路径
   filename: string;
-  hash: string; // For deduplication
+  hash: string;                   // For deduplication
   cloudflareUrl?: string;
-  type: ImageType; // 图片类型：markdown 图片或配图
+  type: ImageType;                // 图片类型：markdown 图片或配图
+  source: ImageSource;            // 'notion' | 'local'
 }
 
 export interface SupabasePageRecord {

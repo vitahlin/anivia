@@ -1,5 +1,5 @@
 import { Client } from '@notionhq/client';
-import { NotionConfig, NotionImage, NotionPageData } from '../types';
+import { NotionConfig, AniviaImage, NotionPageData } from '../types';
 import { Logger } from '../utils/logger';
 import { NotionError } from '../errors/notion-error';
 

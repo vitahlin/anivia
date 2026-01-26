@@ -1,5 +1,5 @@
 import { Logger } from '../utils/logger';
-import { NotionImage, ImageType } from '../types';
+import { AniviaImage, ImageType } from '../types';
 
 export class ImageProcessor {
   private logger: Logger;
@@ -9,12 +9,12 @@ export class ImageProcessor {
   }
 
   /**
-   * 从 Markdown 内容中提取图片 URL
+   * 从 Notion Markdown 内容中提取图片 URL（远程 URL）
    */
-  extractImagesFromMarkdown(markdown: string): string[] {
+  extractNotionImagesFromMarkdown(markdown: string): string[] {
     const imageUrls: string[] = [];
 
-    // 使用正则表达式匹配 Markdown 中的图片
+    // 使用正则表达式匹配 Markdown 中的图片（远程 URL）
     const imageRegex = /!\[.*?]\((https?:\/\/[^)]+)\)/g;
     let match;
 
@@ -29,10 +29,75 @@ export class ImageProcessor {
   }
 
   /**
-   * 将图片 URL 转换为 NotionImage 对象
+   * 从 Obsidian Markdown 内容中提取图片路径（本地文件）
+   * 支持 Obsidian 语法：![[image.png]] 和标准 Markdown 语法：![](image.png)
    */
-  convertUrlsToNotionImages(imageUrls: string[], type: ImageType): NotionImage[] {
-    const images: NotionImage[] = [];
+  extractObsidianImagesFromMarkdown(markdown: string, markdownFilePath: string): string[] {
+    const imagePaths: string[] = [];
+
+    // 1. 匹配 Obsidian 语法：![[image.png]]
+    const obsidianRegex = /!\[\[([^\]]+\.(png|jpg|jpeg|gif|webp|svg))\]\]/gi;
+    let match;
+
+    while ((match = obsidianRegex.exec(markdown)) !== null) {
+      const imagePath = match[1];
+      const resolvedPath = this.resolveObsidianImagePath(imagePath, markdownFilePath);
+      if (resolvedPath && !imagePaths.includes(resolvedPath)) {
+        imagePaths.push(resolvedPath);
+      }
+    }
+
+    // 2. 匹配标准 Markdown 语法中的本地图片：![](./image.png) 或 ![](image.png)
+    const markdownRegex = /!\[.*?]\(([^)]+\.(png|jpg|jpeg|gif|webp|svg))\)/gi;
+
+    while ((match = markdownRegex.exec(markdown)) !== null) {
+      const imagePath = match[1];
+      // 跳过远程 URL
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        continue;
+      }
+      const resolvedPath = this.resolveObsidianImagePath(imagePath, markdownFilePath);
+      if (resolvedPath && !imagePaths.includes(resolvedPath)) {
+        imagePaths.push(resolvedPath);
+      }
+    }
+
+    return imagePaths;
+  }
+
+  /**
+   * 解析 Obsidian 图片路径为绝对路径
+   * 支持相对路径、绝对路径
+   */
+  private resolveObsidianImagePath(obsidianPath: string, markdownFilePath: string): string {
+    const path = require('path');
+    const fs = require('fs');
+
+    // 如果已经是绝对路径，直接返回
+    if (path.isAbsolute(obsidianPath)) {
+      return fs.existsSync(obsidianPath) ? obsidianPath : '';
+    }
+
+    // 获取 Markdown 文件所在目录
+    const markdownDir = path.dirname(markdownFilePath);
+
+    // 解析相对路径
+    const resolvedPath = path.resolve(markdownDir, obsidianPath);
+
+    // 检查文件是否存在
+    if (fs.existsSync(resolvedPath)) {
+      return resolvedPath;
+    }
+
+    this.logger.warn(`⚠️ 图片文件不存在: ${obsidianPath} (解析为: ${resolvedPath})`);
+    return '';
+  }
+
+  /**
+   * 将图片 URL 转换为 AniviaImage 对象（Notion 远程图片）
+   */
+  convertUrlsToAniviaImages(imageUrls: string[], type: ImageType): AniviaImage[] {
+    const images: AniviaImage[] = [];
     imageUrls.forEach((url, index) => {
       const filename = this.generateImageFilename(url, `img_${index}`);
 
@@ -41,13 +106,82 @@ export class ImageProcessor {
         originalUrl: url,
         filename: filename,
         hash: '', // 将在下载时基于内容计算
-        type: type
+        type: type,
+        source: 'notion'
       });
     });
     return images;
   }
 
-  createImageMappings(processedImages: NotionImage[]): Map<string, string> {
+  /**
+   * 将本地图片路径转换为 AniviaImage 对象（Obsidian 本地图片）
+   */
+  convertLocalPathsToAniviaImages(imagePaths: string[], type: ImageType): AniviaImage[] {
+    const path = require('path');
+    const images: AniviaImage[] = [];
+
+    imagePaths.forEach((filePath, index) => {
+      const filename = this.generateLocalImageFilename(filePath, `img_${index}`);
+
+      images.push({
+        url: filePath,           // 本地文件路径
+        originalUrl: filePath,   // 本地文件路径
+        filename: filename,
+        hash: '',                // 将在读取文件时基于内容计算
+        type: type,
+        source: 'local'
+      });
+    });
+    return images;
+  }
+
+  /**
+   * 替换 Obsidian 图片语法为标准 Markdown 语法
+   * ![[image.png]] -> ![](cloudflare-url)
+   * ![](./image.png) -> ![](cloudflare-url)
+   */
+  replaceObsidianImageSyntax(markdown: string, imageMap: Map<string, string>): string {
+    let finalMarkdown = markdown;
+    let totalReplacements = 0;
+
+    if (imageMap.size === 0) {
+      this.logger.warn(`⚠️ 图片映射表为空，跳过 Obsidian 图片语法替换`);
+      return finalMarkdown;
+    }
+
+    imageMap.forEach((cloudflareUrl, localPath) => {
+      const path = require('path');
+      const filename = path.basename(localPath);
+
+      // 1. 替换 Obsidian 语法：![[image.png]]
+      const obsidianPattern = `!\\[\\[${this.escapeRegExp(filename)}\\]\\]`;
+      const obsidianRegex = new RegExp(obsidianPattern, 'g');
+      const obsidianCount = (finalMarkdown.match(obsidianRegex) || []).length;
+
+      if (obsidianCount > 0) {
+        finalMarkdown = finalMarkdown.replace(obsidianRegex, `![](${cloudflareUrl})`);
+        totalReplacements += obsidianCount;
+        this.logger.debug(`   ✅ 替换 Obsidian 语法: ![[${filename}]] -> ![](${cloudflareUrl}) (${obsidianCount} 次)`);
+      }
+
+      // 2. 替换标准 Markdown 语法中的本地路径：![](./image.png) 或 ![](image.png)
+      const escapedPath = this.escapeRegExp(localPath);
+      const markdownRegex = new RegExp(`!\\[([^\\]]*)\\]\\(${escapedPath}\\)`, 'g');
+      const markdownCount = (finalMarkdown.match(markdownRegex) || []).length;
+
+      if (markdownCount > 0) {
+        finalMarkdown = finalMarkdown.replace(markdownRegex, `![$1](${cloudflareUrl})`);
+        totalReplacements += markdownCount;
+        this.logger.debug(`   ✅ 替换 Markdown 语法: ![](${localPath}) -> ![](${cloudflareUrl}) (${markdownCount} 次)`);
+      }
+    });
+
+    this.logger.debug(`📊 Obsidian 图片语法替换统计: 总替换次数 ${totalReplacements}`);
+
+    return finalMarkdown;
+  }
+
+  createImageMappings(processedImages: AniviaImage[]): Map<string, string> {
     const imageMap = new Map<string, string>();
     let mappedCount = 0;
 
@@ -108,13 +242,23 @@ export class ImageProcessor {
   }
 
   /**
-   * 生成图片文件名
+   * 生成图片文件名（Notion 远程图片）
    */
   private generateImageFilename(url: string, blockId: string): string {
     const urlParts = url.split('/');
     const lastPart = urlParts[urlParts.length - 1];
     const extension = lastPart.includes('.') ? lastPart.split('.').pop() : 'jpg';
     return `${blockId}_${Date.now()}.${extension}`;
+  }
+
+  /**
+   * 生成图片文件名（Obsidian 本地图片）
+   */
+  private generateLocalImageFilename(filePath: string, blockId: string): string {
+    const path = require('path');
+    const extension = path.extname(filePath).slice(1) || 'jpg';
+    const basename = path.basename(filePath, path.extname(filePath));
+    return `${basename}_${Date.now()}.${extension}`;
   }
 
   /**

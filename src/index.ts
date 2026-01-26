@@ -7,6 +7,7 @@ import { SyncService } from './services/sync';
 import { ExportService } from './services/export';
 import { SupabaseService } from './services/supabase';
 import { NotionService } from './services/notion';
+import { ObsidianSyncService } from './services/obsidian-sync';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -94,6 +95,63 @@ program
 
       // Perform sync
       const result = await syncService.syncPage(pageId);
+
+      if (result.success) {
+        logger.info(`✅ 同步成功! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
+      } else {
+        logger.error(`❌ 同步失败! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
+        if (result.errors) {
+          result.errors.forEach(error => logger.error(`   - ${error}`));
+        }
+        process.exit(1);
+      }
+
+    } catch (error) {
+      console.error('❌ Fatal error:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('sync-obsidian')
+  .description('Sync an Obsidian Markdown file to Supabase')
+  .argument('<file-path>', 'Path to Obsidian Markdown file')
+  .option('-v, --verbose', 'Enable verbose logging')
+  .option('-d, --debug', 'Enable debug mode (shows detailed JSON logs)')
+  .action(async (filePath: string, options) => {
+    try {
+      // Load configuration
+      const config = getConfig();
+
+      // 确定日志级别：debug > verbose > config.logLevel
+      let logLevel = config.logLevel;
+      if (options.debug) {
+        logLevel = 'debug';
+      } else if (options.verbose) {
+        logLevel = 'info';
+      }
+
+      const logger = new Logger(logLevel);
+
+      // 解析文件路径（支持相对路径和绝对路径）
+      const absolutePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(process.cwd(), filePath);
+
+      logger.info('Starting Obsidian Markdown to Supabase sync...');
+      logger.info(`File: ${absolutePath}`);
+
+      // 检查文件是否存在
+      if (!fs.existsSync(absolutePath)) {
+        logger.error(`❌ File not found: ${absolutePath}`);
+        process.exit(1);
+      }
+
+      // Initialize Obsidian sync service
+      const obsidianSyncService = new ObsidianSyncService(config, logger);
+
+      // Perform sync
+      const result = await obsidianSyncService.syncObsidianFile(absolutePath);
 
       if (result.success) {
         logger.info(`✅ 同步成功! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
