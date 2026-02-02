@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import { Logger } from '../utils/logger';
+import {Logger} from '../utils/logger';
 
 /**
  * ObsidianService - 处理 Obsidian Markdown 文件的解析
@@ -20,10 +20,19 @@ export class ObsidianService {
     this.logger.debug(`📄 开始解析 Markdown 文件: ${filePath}`);
 
     if (!fs.existsSync(filePath)) {
-      throw new Error(`文件不存在: ${filePath}`);
+      console.error(`❌ 文件不存在: ${filePath}`);
+      process.exit(1);
     }
 
-    const rawContent = fs.readFileSync(filePath, 'utf-8');
+    let rawContent: string;
+    try {
+      rawContent = fs.readFileSync(filePath, 'utf-8');
+    } catch (error) {
+      console.error(`❌ 读取文件失败: ${filePath}`);
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+
     const parsed = this.parseFrontMatter(rawContent);
 
     this.logger.debug(`✅ 文件解析完成`);
@@ -48,8 +57,9 @@ export class ObsidianService {
         content: parsed.content
       };
     } catch (error) {
-      this.logger.error(`❌ Front Matter 解析失败:`, error);
-      throw new Error(`Front Matter 解析失败: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('❌ Front Matter 解析失败:');
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
   }
 
@@ -112,9 +122,7 @@ export class ObsidianService {
 
     // 相对路径：相对于 Markdown 文件所在目录
     const markdownDir = path.dirname(markdownFilePath);
-    const resolvedPath = path.resolve(markdownDir, imagePath);
-
-    return resolvedPath;
+      return path.resolve(markdownDir, imagePath);
   }
 }
 

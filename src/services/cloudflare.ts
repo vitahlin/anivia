@@ -19,19 +19,19 @@ export class CloudflareService {
 
     // 验证配置
     if (!config.accessKeyId || !config.secretAccessKey) {
-      this.logger.error('❌ Cloudflare R2 认证配置缺失');
-      this.logger.error(`  Access Key ID: ${config.accessKeyId ? '已设置' : '未设置'}`);
-      this.logger.error(`  Secret Access Key: ${config.secretAccessKey ? '已设置' : '未设置'}`);
-      throw new Error(
-        'Cloudflare R2 认证配置缺失。请提供：\n' +
-        '  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)\n' +
-        '  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)\n\n' +
-        '如何创建 R2 API Token：\n' +
-        '  1. 访问 Cloudflare Dashboard → R2 → Manage R2 API Tokens\n' +
-        '  2. 点击 Create API Token → 选择权限 (Object Read & Write)\n' +
-        '  3. 创建后会显示 Access Key ID 和 Secret Access Key，请妥善保存\n' +
-        '  4. 将它们设置为环境变量 ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 和 ZILEAN_CLOUDFLARE_R2_SECRET_KEY'
-      );
+      console.error('❌ Cloudflare R2 认证配置缺失');
+      console.error(`  Access Key ID: ${config.accessKeyId ? '已设置' : '未设置'}`);
+      console.error(`  Secret Access Key: ${config.secretAccessKey ? '已设置' : '未设置'}`);
+      console.error('Cloudflare R2 认证配置缺失。请提供：');
+      console.error('  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)');
+      console.error('  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)');
+      console.error('');
+      console.error('如何创建 R2 API Token：');
+      console.error('  1. 访问 Cloudflare Dashboard → R2 → Manage R2 API Tokens');
+      console.error('  2. 点击 Create API Token → 选择权限 (Object Read & Write)');
+      console.error('  3. 创建后会显示 Access Key ID 和 Secret Access Key，请妥善保存');
+      console.error('  4. 将它们设置为环境变量 ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 和 ZILEAN_CLOUDFLARE_R2_SECRET_KEY');
+      process.exit(1);
     }
 
     this.logger.debug(`🔧 初始化 Cloudflare R2 S3 客户端:`);
@@ -119,11 +119,11 @@ export class CloudflareService {
   }
 
   private async checkImageExists(contentHash: string, imageType: ImageType): Promise<string | null> {
-    try {
-      const directory = this.getImageDirectory(imageType);
-      const key = `${directory}/${contentHash}.webp`;
+    const directory = this.getImageDirectory(imageType);
+    const key = `${directory}/${contentHash}.webp`;
 
-      const headResponse = await this.s3Client.send(new HeadObjectCommand({
+    try {
+      await this.s3Client.send(new HeadObjectCommand({
         Bucket: this.config.bucketName,
         Key: key,
       }));
@@ -138,25 +138,26 @@ export class CloudflareService {
       return publicUrl;
     } catch (error: any) {
       if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
-        this.logger.debug(`图片不存在于 Cloudflare: ${this.getImageDirectory(imageType)}/${contentHash}.webp`);
+        this.logger.debug(`图片不存在于 Cloudflare: ${key}`);
         return null;
       }
 
       // 401 错误特殊处理
       if (error.$metadata?.httpStatusCode === 401) {
-        this.logger.error(`🚨 Cloudflare R2 认证失败 (401 Unauthorized)`);
-        this.logger.error(`  请检查以下配置:`);
-        this.logger.error(`  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 是否正确`);
-        this.logger.error(`  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY 是否正确`);
-        this.logger.error(`  - R2 API Token 是否有读写权限`);
-        this.logger.error(`  - Bucket 名称是否正确: ${this.config.bucketName}`);
-        this.logger.error(`  - Endpoint 是否正确: ${this.config.endpoint}`);
-        this.logger.error(`  - API Token/Access Key 是否已过期或被撤销`);
+        console.error('🚨 Cloudflare R2 认证失败 (401 Unauthorized)');
+        console.error('  请检查以下配置:');
+        console.error('  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 是否正确');
+        console.error('  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY 是否正确');
+        console.error('  - R2 API Token 是否有读写权限');
+        console.error(`  - Bucket 名称是否正确: ${this.config.bucketName}`);
+        console.error(`  - Endpoint 是否正确: ${this.config.endpoint}`);
+        console.error('  - API Token/Access Key 是否已过期或被撤销');
+        process.exit(1);
       }
 
-      this.logger.error(`🚨 检查图片存在性时出错: ${error.message || error.name}`);
-      this.logger.debug(`错误详情:`, error);
-      throw CloudflareError.fromAwsError(error);
+      console.error(`❌ 检查图片存在性时出错: ${error.message || error.name}`);
+      console.error(error instanceof Error ? error.stack : String(error));
+      process.exit(1);
     }
   }
 
@@ -165,16 +166,15 @@ export class CloudflareService {
     try {
       response = await fetch(imageUrl);
     } catch (error) {
-      this.logger.error(`❌ 下载图片失败: ${imageUrl}`, error);
-      throw CloudflareError.fromDownloadError(imageUrl, error);
+      console.error(`❌ 下载图片失败: ${imageUrl}`);
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
 
     if (!response.ok) {
-      this.logger.error(`❌ 下载图片失败: ${imageUrl}, 状态码: ${response.status}`);
-      throw CloudflareError.fromDownloadError(imageUrl, {
-        statusCode: response.status,
-        message: response.statusText
-      });
+      console.error(`❌ 下载图片失败: ${imageUrl}`);
+      console.error(`状态码: ${response.status} ${response.statusText}`);
+      process.exit(1);
     }
 
     const originalBuffer = Buffer.from(await response.arrayBuffer());
@@ -185,17 +185,18 @@ export class CloudflareService {
   }
 
   private async readLocalFileAndHash(filePath: string): Promise<{ buffer: Buffer; contentHash: string }> {
+    let originalBuffer: Buffer;
     try {
-      // 读取本地文件
-      const originalBuffer = fs.readFileSync(filePath);
-
-      // 基于图片内容计算哈希
-      const contentHash = crypto.createHash('md5').update(originalBuffer).digest('hex');
-      return { buffer: originalBuffer, contentHash };
+      originalBuffer = fs.readFileSync(filePath);
     } catch (error) {
-      this.logger.error(`❌ 读取本地图片失败: ${filePath}`, error);
-      throw new Error(`Failed to read local image: ${filePath}`);
+      console.error(`❌ 读取本地图片失败: ${filePath}`);
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
+
+    // 基于图片内容计算哈希
+    const contentHash = crypto.createHash('md5').update(originalBuffer).digest('hex');
+    return { buffer: originalBuffer, contentHash };
   }
 
   private async uploadImageBuffer(image: AniviaImage, originalBuffer: Buffer): Promise<string> {
@@ -229,8 +230,9 @@ export class CloudflareService {
         })
         .toBuffer();
     } catch (error) {
-      this.logger.error(`❌ 图片转换失败 ${image.filename}:`, error);
-      throw CloudflareError.fromProcessingError(image.filename, error);
+      console.error(`❌ 图片转换失败: ${image.filename}`);
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
 
     const webpSize = webpBuffer.length;
@@ -264,8 +266,9 @@ export class CloudflareService {
         }
       }));
     } catch (error) {
-      this.logger.error(`❌ 上传到 Cloudflare 失败 ${image.filename}:`, error);
-      throw CloudflareError.fromAwsError(error);
+      console.error(`❌ 上传到 Cloudflare R2 失败: ${image.filename}`);
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
 
     const cloudflareUrl = `${this.config.publicUrl}/${key}`;
@@ -277,17 +280,12 @@ export class CloudflareService {
   }
 
   async deleteImage(hash: string, imageType: ImageType = 'markdown'): Promise<void> {
-    try {
-      const directory = this.getImageDirectory(imageType);
-      const key = `${directory}/${hash}.webp`;
+    const directory = this.getImageDirectory(imageType);
+    const key = `${directory}/${hash}.webp`;
 
-      // Note: DeleteObjectCommand would be used here, but we're being conservative
-      // and not implementing deletion to avoid accidental data loss
-      this.logger.warn(`Image deletion not implemented for safety: ${key}`);
-    } catch (error) {
-      this.logger.error(`Failed to delete image ${hash}:`, error);
-      throw error;
-    }
+    // Note: DeleteObjectCommand would be used here, but we're being conservative
+    // and not implementing deletion to avoid accidental data loss
+    this.logger.warn(`Image deletion not implemented for safety: ${key}`);
   }
 
   getUploadedImagesCount(): number {

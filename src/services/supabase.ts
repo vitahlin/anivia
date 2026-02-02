@@ -14,142 +14,122 @@ export class SupabaseService {
   }
 
   async syncPageData(pageData: NotionPageData): Promise<void> {
-    try {
-      // Remove dashes from page ID
-      const cleanPageId = pageData.id.replace(/-/g, '');
+    // Remove dashes from page ID
+    const cleanPageId = pageData.id.replace(/-/g, '');
 
-      // Check if page already exists
-      const existingPage = await this.getPageById(cleanPageId);
+    // Check if page already exists
+    const existingPage = await this.getPageById(cleanPageId);
 
-      const record: Partial<SupabasePageRecord> = {
-        notion_page_id: cleanPageId,
-        title: pageData.title,
-        content: pageData.content,
-        created_time: pageData.createdTime,
-        last_edited_time: pageData.lastEditedTime,
-        handler: pageData.handler,
-        published: pageData.published,
-        draft: pageData.draft,
-        archived: pageData.archived,
-        categories: pageData.categories,
-        tags: pageData.tags,
-        excerpt: pageData.excerpt,
-        featured_img: pageData.featuredImg,
-        gallery_imgs: pageData.galleryImgs,
-        properties: pageData.properties,
-        updated_at: new Date().toISOString()
-      };
+    const record: Partial<SupabasePageRecord> = {
+      notion_page_id: cleanPageId,
+      title: pageData.title,
+      content: pageData.content,
+      created_time: pageData.createdTime,
+      last_edited_time: pageData.lastEditedTime,
+      handler: pageData.handler,
+      published: pageData.published,
+      draft: pageData.draft,
+      archived: pageData.archived,
+      categories: pageData.categories,
+      tags: pageData.tags,
+      excerpt: pageData.excerpt,
+      featured_img: pageData.featuredImg,
+      gallery_imgs: pageData.galleryImgs,
+      properties: pageData.properties,
+      updated_at: new Date().toISOString()
+    };
 
-      if (existingPage) {
-        // Update existing record
-        await this.updatePage(existingPage.id, record);
-      } else {
-        // Insert new record
-        record.created_at = new Date().toISOString();
-        await this.insertPage(record);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to sync page data for ${pageData.id}:`, error);
-      throw error;
+    if (existingPage) {
+      // Update existing record
+      await this.updatePage(existingPage.id, record);
+    } else {
+      // Insert new record
+      record.created_at = new Date().toISOString();
+      await this.insertPage(record);
     }
   }
 
   async getPageById(notionPageId: string): Promise<SupabasePageRecord | null> {
-    try {
-      const { data, error } = await this.client
-        .from(this.tableName)
-        .select('*')
-        .eq('notion_page_id', notionPageId)
-        .single();
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .eq('notion_page_id', notionPageId)
+      .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No rows returned
-          return null;
-        }
-        throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
       }
-
-      return data;
-    } catch (error) {
-      this.logger.error(`Failed to get page by ID ${notionPageId}:`, error);
-      throw error;
+      console.error(`❌ 从 Supabase 获取页面失败: ${notionPageId}`);
+      console.error(error.message || String(error));
+      process.exit(1);
     }
+
+    return data;
   }
 
   private async insertPage(record: Partial<SupabasePageRecord>): Promise<SupabasePageRecord> {
-    try {
-      const { data, error } = await this.client
-        .from(this.tableName)
-        .insert(record)
-        .select()
-        .single();
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .insert(record)
+      .select()
+      .single();
 
-      if (error) {
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      this.logger.error('Failed to insert page:', error);
-      throw error;
+    if (error) {
+      console.error('❌ 插入页面到 Supabase 失败');
+      console.error(error.message || String(error));
+      process.exit(1);
     }
+
+    return data;
   }
 
   private async updatePage(id: number, record: Partial<SupabasePageRecord>): Promise<SupabasePageRecord> {
-    try {
-      const { data, error } = await this.client
-        .from(this.tableName)
-        .update(record)
-        .eq('id', id)
-        .select()
-        .single();
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .update(record)
+      .eq('id', id)
+      .select()
+      .single();
 
-      if (error) {
-        throw error;
-      }
-
-      return data;
-    } catch (error) {
-      this.logger.error(`Failed to update page ${id}:`, error);
-      throw error;
+    if (error) {
+      console.error(`❌ 更新 Supabase 页面失败 (ID: ${id})`);
+      console.error(error.message || String(error));
+      process.exit(1);
     }
+
+    return data;
   }
 
   async getAllPages(): Promise<SupabasePageRecord[]> {
-    try {
-      const { data, error } = await this.client
-        .from(this.tableName)
-        .select('*')
-        .order('created_at', { ascending: false });
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .order('created_at', { ascending: false });
 
-      if (error) {
-        throw error;
-      }
-
-      return data || [];
-    } catch (error) {
-      this.logger.error('Failed to get all pages:', error);
-      throw error;
+    if (error) {
+      console.error('❌ 从 Supabase 获取所有页面失败');
+      console.error(error.message || String(error));
+      process.exit(1);
     }
+
+    return data || [];
   }
 
   async deletePage(notionPageId: string): Promise<void> {
-    try {
-      const { error } = await this.client
-        .from(this.tableName)
-        .delete()
-        .eq('notion_page_id', notionPageId);
+    const { error } = await this.client
+      .from(this.tableName)
+      .delete()
+      .eq('notion_page_id', notionPageId);
 
-      if (error) {
-        throw error;
-      }
-
-      this.logger.info(`Deleted page: ${notionPageId}`);
-    } catch (error) {
-      this.logger.error(`Failed to delete page ${notionPageId}:`, error);
-      throw error;
+    if (error) {
+      console.error(`❌ 从 Supabase 删除页面失败: ${notionPageId}`);
+      console.error(error.message || String(error));
+      process.exit(1);
     }
+
+    this.logger.info(`Deleted page: ${notionPageId}`);
   }
 
   /**

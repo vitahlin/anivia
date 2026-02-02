@@ -89,7 +89,16 @@ export class NotionService {
     try {
       return await apiCall();
     } catch (error: any) {
-      throw NotionError.fromNotionApiError(error);
+      const notionError = NotionError.fromNotionApiError(error);
+      console.error('❌ Notion API 调用失败');
+      console.error(notionError.message);
+      if (notionError.code) {
+        console.error(`错误代码: ${notionError.code}`);
+      }
+      if (notionError.status) {
+        console.error(`HTTP 状态码: ${notionError.status}`);
+      }
+      process.exit(1);
     }
   }
 
@@ -328,56 +337,51 @@ export class NotionService {
     startTime: string,
     endTime: string
   ): Promise<Array<{ id: string; title: string; lastEditedTime: string }>> {
-    try {
-      const response = await this.callNotionApi(() =>
-        this.client.databases.query({
-          database_id: databaseId,
-          filter: {
-            and: [
-              {
-                timestamp: 'last_edited_time',
-                last_edited_time: {
-                  on_or_after: startTime
-                }
-              },
-              {
-                timestamp: 'last_edited_time',
-                last_edited_time: {
-                  on_or_before: endTime
-                }
-              }
-            ]
-          },
-          sorts: [
+    const response = await this.callNotionApi(() =>
+      this.client.databases.query({
+        database_id: databaseId,
+        filter: {
+          and: [
             {
               timestamp: 'last_edited_time',
-              direction: 'descending'
+              last_edited_time: {
+                on_or_after: startTime
+              }
+            },
+            {
+              timestamp: 'last_edited_time',
+              last_edited_time: {
+                on_or_before: endTime
+              }
             }
           ]
-        })
-      );
+        },
+        sorts: [
+          {
+            timestamp: 'last_edited_time',
+            direction: 'descending'
+          }
+        ]
+      })
+    );
 
-      return response.results.map((page: any) => {
-        let title = 'Untitled';
-        if (page.properties) {
-          for (const [key, value] of Object.entries(page.properties)) {
-            if ((value as any).type === 'title' && (value as any).title) {
-              title = (value as any).title.map((t: any) => t.plain_text).join('');
-              break;
-            }
+    return response.results.map((page: any) => {
+      let title = 'Untitled';
+      if (page.properties) {
+        for (const [key, value] of Object.entries(page.properties)) {
+          if ((value as any).type === 'title' && (value as any).title) {
+            title = (value as any).title.map((t: any) => t.plain_text).join('');
+            break;
           }
         }
+      }
 
-        return {
-          id: page.id,
-          title,
-          lastEditedTime: page.last_edited_time
-        };
-      });
-    } catch (error: any) {
-      this.logger.error('查询数据库失败:', error);
-      throw error;
-    }
+      return {
+        id: page.id,
+        title,
+        lastEditedTime: page.last_edited_time
+      };
+    });
   }
 
   /**

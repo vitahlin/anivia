@@ -28,7 +28,8 @@ export class ObsidianSyncService {
 
     // 验证文件存在
     if (!fs.existsSync(filePath)) {
-      throw new Error(`文件不存在: ${filePath}`);
+      console.error(`❌ 文件不存在: ${filePath}`);
+      process.exit(1);
     }
 
     // Step 1: 解析 Markdown 文件和 Front Matter
@@ -37,7 +38,8 @@ export class ObsidianSyncService {
 
     // 验证必需字段
     if (!frontMatter.title) {
-      throw new Error('Front Matter 缺少必需字段: title');
+      console.error('❌ Front Matter 缺少必需字段: title');
+      process.exit(1);
     }
 
     // Step 2: 提取本地图片
