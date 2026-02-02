@@ -1,12 +1,10 @@
-import { NotionService } from './notion';
-import { NotionMarkdownConverter } from './notion-markdown';
-import { CloudflareService } from './cloudflare';
-import { SupabaseService } from './supabase';
-import { ImageProcessor } from './image-processor';
-import { AppConfig, SyncResult, NotionPageData, AniviaImage } from '../types';
-import { Logger } from '../utils/logger';
-import { NotionError } from '../errors/notion-error';
-import { CloudflareError } from '../errors/cloudflare-error';
+import {NotionService} from './notion';
+import {NotionMarkdownConverter} from './notion-markdown';
+import {CloudflareService} from './cloudflare';
+import {SupabaseService} from './supabase';
+import {ImageProcessor} from './image-processor';
+import {AniviaImage, AppConfig, NotionPageData, SyncResult} from '../types';
+import {Logger} from '../utils/logger';
 
 export class SyncService {
   private notionService: NotionService;
@@ -162,14 +160,12 @@ export class SyncService {
     await this.supabaseService.syncPageData(finalPageData);
     this.logger.debug('✅ 成功保存到 Supabase');
 
-    const result: SyncResult = {
-      success: true,
-      pageId,
-      message: `🎉 页面 ${pageId} 同步成功`,
-      imagesProcessed
+    return {
+        success: true,
+        pageId,
+        message: `🎉 页面 ${pageId} 同步成功`,
+        imagesProcessed
     };
-
-    return result;
   }
 
   /**
