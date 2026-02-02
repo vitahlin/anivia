@@ -5,6 +5,7 @@ import { SyncService } from './services/sync';
 import { ExportService } from './services/export';
 import { SupabaseService } from './services/supabase';
 import { NotionService } from './services/notion';
+import { extractPageId } from './utils/notionUtil';
 import * as path from 'path';
 
 const app = express();
@@ -12,33 +13,6 @@ const PORT = process.env.API_PORT || 3000;
 
 // Middleware
 app.use(express.json());
-
-// 从 URL 或 ID 中提取 page ID
-function extractPageId(input: string): string {
-  const cleanInput = input.replace(/-/g, '');
-  if (/^[a-f0-9]{32}$/i.test(cleanInput)) {
-    return input;
-  }
-
-  try {
-    const url = new URL(input);
-    const pathname = url.pathname;
-    
-    const match = pathname.match(/([a-f0-9]{32})/i);
-    if (match) {
-      return match[1];
-    }
-    
-    const matchWithDashes = pathname.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
-    if (matchWithDashes) {
-      return matchWithDashes[1];
-    }
-  } catch (e) {
-    // 不是有效的 URL
-  }
-
-  return input;
-}
 
 // 健康检查端点（不需要 API key）
 app.get('/health', (req: Request, res: Response) => {
