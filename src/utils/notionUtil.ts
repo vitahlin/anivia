@@ -7,12 +7,12 @@
  * - 带连字符的 UUID 格式: 270baa81-0695-8049-81e8-e432c4fafe3a
  *
  * @param input - Notion URL 或 page ID
- * @returns 提取的 page ID (32位十六进制字符串)
- * @throws Error 如果无法解析有效的 page ID
+ * @returns 提取的 page ID (32位十六进制字符串)，如果解析失败则退出程序
  */
 export function extractPageId(input: string): string {
     if (!input) {
-        throw new Error('❌ 无效的输入：输入不能为空');
+        console.error('❌ 无效的输入：输入不能为空');
+        process.exit(1);
     }
 
     const trimmedInput = input.trim();
@@ -37,11 +37,12 @@ export function extractPageId(input: string): string {
         }
 
         // 无法识别的格式
-        throw new Error(`❌ 无效的 Notion page ID 或 URL 格式: ${trimmedInput}\n` +
-            `支持的格式：\n` +
-            `  - Notion URL: https://www.notion.so/Title-270baa810695804981e8e432c4fafe3a\n` +
-            `  - 32位十六进制: 270baa810695804981e8e432c4fafe3a\n` +
-            `  - UUID格式: 270baa81-0695-8049-81e8-e432c4fafe3a`);
+        console.error(`❌ 无效的 Notion page ID 或 URL 格式: ${trimmedInput}`);
+        console.error('支持的格式：');
+        console.error('  - Notion URL: https://www.notion.so/Title-270baa810695804981e8e432c4fafe3a');
+        console.error('  - 32位十六进制: 270baa810695804981e8e432c4fafe3a');
+        console.error('  - UUID格式: 270baa81-0695-8049-81e8-e432c4fafe3a');
+        process.exit(1);
     }
 
     // URL 解析成功，从 pathname 中提取 page ID
@@ -61,9 +62,10 @@ export function extractPageId(input: string): string {
     }
 
     // 如果是有效的 URL 但无法提取 page ID
-    throw new Error(`❌ 无法从 URL 中提取有效的 Notion page ID: ${trimmedInput}\n` +
-        `支持的格式：\n` +
-        `  - Notion URL: https://www.notion.so/Title-270baa810695804981e8e432c4fafe3a\n` +
-        `  - 32位十六进制: 270baa810695804981e8e432c4fafe3a\n` +
-        `  - UUID格式: 270baa81-0695-8049-81e8-e432c4fafe3a`);
+    console.error(`❌ 无法从 URL 中提取有效的 Notion page ID: ${trimmedInput}`);
+    console.error('支持的格式：');
+    console.error('  - Notion URL: https://www.notion.so/Title-270baa810695804981e8e432c4fafe3a');
+    console.error('  - 32位十六进制: 270baa810695804981e8e432c4fafe3a');
+    console.error('  - UUID格式: 270baa81-0695-8049-81e8-e432c4fafe3a');
+    process.exit(1);
 }

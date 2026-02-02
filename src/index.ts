@@ -38,36 +38,38 @@ program
 
         const logger = new Logger(logLevel);
 
-        // 从 URL 或 ID 中提取 page ID
+        // 从 URL 或 ID 中提取 page ID（解析失败会直接退出）
         const pageId = extractPageId(pageIdOrUrl);
 
+        logger.info('Starting Notion to Supabase sync...');
+        if (pageIdOrUrl !== pageId) {
+            logger.info(`Input: ${pageIdOrUrl}`);
+            logger.info(`Extracted Page ID: ${pageId}`);
+        } else {
+            logger.info(`Page ID: ${pageId}`);
+        }
+
+        // 初始化同步服务
+        const syncService = new SyncService(config, logger);
+
+        // 执行同步（可能抛出异常）
+        let result;
         try {
-            logger.info('Starting Notion to Supabase sync...');
-            if (pageIdOrUrl !== pageId) {
-                logger.info(`Input: ${pageIdOrUrl}`);
-                logger.info(`Extracted Page ID: ${pageId}`);
-            } else {
-                logger.info(`Page ID: ${pageId}`);
-            }
-
-            // Initialize sync service
-            const syncService = new SyncService(config, logger);
-
-            // Perform sync
-            const result = await syncService.syncPage(pageId);
-
-            if (result.success) {
-                logger.info(`✅ 同步成功! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
-            } else {
-                logger.error(`❌ 同步失败! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
-                if (result.errors) {
-                    result.errors.forEach(error => logger.error(`   - ${error}`));
-                }
-                process.exit(1);
-            }
-
+            result = await syncService.syncPage(pageId);
         } catch (error) {
-            console.error('❌ Fatal error:', error);
+            logger.error('❌ 同步过程中发生致命错误:');
+            logger.error(error instanceof Error ? error.message : String(error));
+            process.exit(1);
+        }
+
+        // 处理同步结果
+        if (result.success) {
+            logger.info(`✅ 同步成功! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
+        } else {
+            logger.error(`❌ 同步失败! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
+            if (result.errors) {
+                result.errors.forEach(error => logger.error(`   - ${error}`));
+            }
             process.exit(1);
         }
     });
