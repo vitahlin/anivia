@@ -15,12 +15,12 @@ import * as fs from 'fs';
 const program = new Command();
 
 program
-    .name('notion-upload')
+    .name('anivia')
     .description('Sync Notion pages to Supabase database with image upload to Cloudflare')
     .version('1.0.0');
 
 program
-    .command('sync')
+    .command('sync-notion-page')
     .description('Sync a Notion page to Supabase')
     .argument('<pageId>', 'Notion page ID or URL to sync')
     .option('-v, --verbose', 'Enable verbose logging')
@@ -127,7 +127,7 @@ program
     });
 
 program
-    .command('check-notion')
+    .command('check-notion-config')
     .description('Check Notion API configuration and permissions')
     .option('-v, --verbose', 'Enable verbose logging')
     .action(async (options) => {
@@ -220,7 +220,7 @@ program
     });
 
 program
-    .command('check-db')
+    .command('check-supabase-config')
     .description('Check Supabase database configuration and table structure')
     .option('-v, --verbose', 'Enable verbose logging')
     .action(async (options) => {
@@ -367,7 +367,7 @@ program
     });
 
 program
-    .command('query-updated-page')
+    .command('query-notion-database-updated-pages')
     .description('Query pages updated in a time range from Notion database')
     .argument('<databaseId>', 'Notion database ID')
     .argument('[startTime]', 'Start time in format yyyyMMddHHmmss (default: 20000101000000)')
@@ -459,7 +459,7 @@ program
     });
 
 program
-    .command('sync-updated-page')
+    .command('sync-notion-database-updated-pages')
     .description('Query and sync pages updated in a time range from Notion database to Supabase')
     .argument('<databaseId>', 'Notion database ID')
     .argument('[startTime]', 'Start time in format yyyyMMddHHmmss (default: 20000101000000)')
@@ -635,7 +635,7 @@ program
 
 // Verify Cloudflare configuration
 program
-    .command('verify-cloudflare')
+    .command('verify-cloudflare-config')
     .description('Verify Cloudflare R2 configuration and connection')
     .option('-v, --verbose', 'Enable verbose logging')
     .action(async (options) => {

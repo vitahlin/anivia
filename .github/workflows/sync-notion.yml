@@ -138,7 +138,7 @@ jobs:
 
             # 构建同步命令
             # 使用临时文件收集每个数据库的输出
-            SYNC_CMD="GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" bun run dist/index.js sync-updated-page \"$DB_ID\" \"$START_TIME\" \"$END_TIME\""
+            SYNC_CMD="GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" bun run dist/index.js sync-notion-database-updated-pages \"$DB_ID\" \"$START_TIME\" \"$END_TIME\""
             if [ "$IGNORE_UPDATE_TIME" = "true" ]; then
               SYNC_CMD="$SYNC_CMD --ignore-update-time"
             fi
