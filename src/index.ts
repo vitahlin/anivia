@@ -695,8 +695,8 @@ program
                 logger.info('💡 故障排查建议:');
                 logger.info('');
                 logger.info('1. 检查环境变量是否正确设置:');
-                logger.info('   - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)');
-                logger.info('   - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)');
+                logger.info('   - SONDER_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)');
+                logger.info('   - SONDER_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)');
                 logger.info('   - CLOUDFLARE_ACCOUNT_ID');
                 logger.info('   - CLOUDFLARE_BUCKET_NAME (可选，默认: zilean)');
                 logger.info('');
@@ -704,8 +704,8 @@ program
                 logger.info('   - 访问 Cloudflare Dashboard → R2 → Manage R2 API Tokens');
                 logger.info('   - 点击 Create API Token → 选择权限（需要 Object Read & Write）');
                 logger.info('   - 创建后会显示 Access Key ID 和 Secret Access Key');
-                logger.info('   - 将 Access Key ID 设置为 ZILEAN_CLOUDFLARE_R2_ACCESS_KEY');
-                logger.info('   - 将 Secret Access Key 设置为 ZILEAN_CLOUDFLARE_R2_SECRET_KEY');
+                logger.info('   - 将 Access Key ID 设置为 SONDER_R2_ACCESS_KEY');
+                logger.info('   - 将 Secret Access Key 设置为 SONDER_R2_SECRET_KEY');
                 logger.info('');
                 logger.info('3. 检查 API Token 权限:');
                 logger.info('   - 确保有 R2 的读写权限');

@@ -105,18 +105,18 @@ export function getFullConfig(options?: {
 
   if (!skipCloudflare) {
     // 检查 R2 API Token 生成的 Access Key
-    const hasAccessKey = !!(process.env.ZILEAN_CLOUDFLARE_R2_ACCESS_KEY && process.env.ZILEAN_CLOUDFLARE_R2_SECRET_KEY);
+    const hasAccessKey = !!(process.env.SONDER_R2_ACCESS_KEY && process.env.SONDER_R2_SECRET_KEY);
 
     if (!hasAccessKey) {
       throw new Error(
         'Missing Cloudflare R2 credentials. Please provide:\n' +
-        '  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (Access Key ID from R2 API Token)\n' +
-        '  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (Secret Access Key from R2 API Token)\n\n' +
+        '  - SONDER_R2_ACCESS_KEY (Access Key ID from R2 API Token)\n' +
+        '  - SONDER_R2_SECRET_KEY (Secret Access Key from R2 API Token)\n\n' +
         'To create R2 API Token:\n' +
         '  1. Go to Cloudflare Dashboard → R2 → Manage R2 API Tokens\n' +
         '  2. Create API Token → Select permissions (Object Read & Write)\n' +
         '  3. Copy the Access Key ID and Secret Access Key\n' +
-        '  4. Set them as ZILEAN_CLOUDFLARE_R2_ACCESS_KEY and ZILEAN_CLOUDFLARE_R2_SECRET_KEY'
+        '  4. Set them as SONDER_R2_ACCESS_KEY and SONDER_R2_SECRET_KEY'
       );
     }
   }
@@ -169,8 +169,8 @@ export function getFullConfig(options?: {
     },
     cloudflare: {
       accountId: DEFAULT_CONFIG.cloudflare.accountId,
-      accessKeyId: process.env.ZILEAN_CLOUDFLARE_R2_ACCESS_KEY!,
-      secretAccessKey: process.env.ZILEAN_CLOUDFLARE_R2_SECRET_KEY!,
+      accessKeyId: process.env.SONDER_R2_ACCESS_KEY!,
+      secretAccessKey: process.env.SONDER_R2_SECRET_KEY!,
       bucketName: DEFAULT_CONFIG.cloudflare.bucketName,
       endpoint: DEFAULT_CONFIG.cloudflare.endpoint,
       publicUrl: DEFAULT_CONFIG.cloudflare.publicUrl,

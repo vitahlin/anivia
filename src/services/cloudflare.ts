@@ -23,14 +23,14 @@ export class CloudflareService {
       console.error(`  Access Key ID: ${config.accessKeyId ? '已设置' : '未设置'}`);
       console.error(`  Secret Access Key: ${config.secretAccessKey ? '已设置' : '未设置'}`);
       console.error('Cloudflare R2 认证配置缺失。请提供：');
-      console.error('  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)');
-      console.error('  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)');
+      console.error('  - SONDER_R2_ACCESS_KEY (从 R2 API Token 获得的 Access Key ID)');
+      console.error('  - SONDER_R2_SECRET_KEY (从 R2 API Token 获得的 Secret Access Key)');
       console.error('');
       console.error('如何创建 R2 API Token：');
       console.error('  1. 访问 Cloudflare Dashboard → R2 → Manage R2 API Tokens');
       console.error('  2. 点击 Create API Token → 选择权限 (Object Read & Write)');
       console.error('  3. 创建后会显示 Access Key ID 和 Secret Access Key，请妥善保存');
-      console.error('  4. 将它们设置为环境变量 ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 和 ZILEAN_CLOUDFLARE_R2_SECRET_KEY');
+      console.error('  4. 将它们设置为环境变量 SONDER_R2_ACCESS_KEY 和 SONDER_R2_SECRET_KEY');
       process.exit(1);
     }
 
@@ -146,8 +146,8 @@ export class CloudflareService {
       if (error.$metadata?.httpStatusCode === 401) {
         console.error('🚨 Cloudflare R2 认证失败 (401 Unauthorized)');
         console.error('  请检查以下配置:');
-        console.error('  - ZILEAN_CLOUDFLARE_R2_ACCESS_KEY 是否正确');
-        console.error('  - ZILEAN_CLOUDFLARE_R2_SECRET_KEY 是否正确');
+        console.error('  - SONDER_R2_ACCESS_KEY 是否正确');
+        console.error('  - SONDER_R2_SECRET_KEY 是否正确');
         console.error('  - R2 API Token 是否有读写权限');
         console.error(`  - Bucket 名称是否正确: ${this.config.bucketName}`);
         console.error(`  - Endpoint 是否正确: ${this.config.endpoint}`);

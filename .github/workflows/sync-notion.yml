@@ -82,8 +82,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          ZILEAN_CLOUDFLARE_R2_ACCESS_KEY: ${{ secrets.ZILEAN_CLOUDFLARE_R2_ACCESS_KEY }}
-          ZILEAN_CLOUDFLARE_R2_SECRET_KEY: ${{ secrets.ZILEAN_CLOUDFLARE_R2_SECRET_KEY }}
+          SONDER_R2_ACCESS_KEY: ${{ secrets.SONDER_R2_ACCESS_KEY }}
+          SONDER_R2_SECRET_KEY: ${{ secrets.SONDER_R2_SECRET_KEY }}
           NOTION_DATABASE_IDS: ${{ vars.NOTION_DATABASE_IDS }}
         run: |
           # 从环境变量读取数据库 ID 列表（逗号分隔）
