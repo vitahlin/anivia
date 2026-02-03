@@ -12,9 +12,9 @@
     "sync-notion-database-updated-pages": "bun run dist/index.js sync-notion-database-updated-pages",
     "sync-obsidian": "bun run dist/index.js sync-obsidian",
     "export": "bun run dist/index.js export",
-    "check-notion": "bun run dist/index.js check-notion",
-    "check-db": "bun run dist/index.js check-db",
-    "verify-cloudflare-config": "bun run dist/index.js verify-cloudflare-config",
+    "verify-config-notion": "bun run dist/index.js verify-config-notion",
+    "verify-config-supabase": "bun run dist/index.js verify-config-supabase",
+    "verify-config-cloudflare": "bun run dist/index.js verify-config-cloudflare",
     "update-sync-time": "bun run dist/index.js update-sync-time",
     "server": "npm run build && node dist/server.js",
     "server:dev": "ts-node src/server.ts"

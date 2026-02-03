@@ -127,8 +127,8 @@ program
     });
 
 program
-    .command('check-notion-config')
-    .description('Check Notion API configuration and permissions')
+    .command('verify-config-notion')
+    .description('Verify Notion API configuration and permissions')
     .option('-v, --verbose', 'Enable verbose logging')
     .action(async (options) => {
         try {
@@ -220,8 +220,8 @@ program
     });
 
 program
-    .command('check-supabase-config')
-    .description('Check Supabase database configuration and table structure')
+    .command('verify-config-supabase')
+    .description('Verify Supabase database configuration and table structure')
     .option('-v, --verbose', 'Enable verbose logging')
     .action(async (options) => {
         try {
@@ -635,7 +635,7 @@ program
 
 // Verify Cloudflare configuration
 program
-    .command('verify-cloudflare-config')
+    .command('verify-config-cloudflare')
     .description('Verify Cloudflare R2 configuration and connection')
     .option('-v, --verbose', 'Enable verbose logging')
     .action(async (options) => {
