@@ -183,42 +183,20 @@ export class SupabaseService {
       this.logger.info('✅ Supabase 连接成功');
       this.logger.info(`✅ 表 "${this.tableName}" 存在`);
 
-      // 2. 查询表结构
+      // 2. 查询表结构（通过样本数据）
       this.logger.info('📋 检查表结构...');
-      const { data: structureData, error: structureError } = await this.client
-        .rpc('exec_sql', {
-          sql: `
-            SELECT
-              column_name,
-              data_type,
-              is_nullable,
-              column_default
-            FROM information_schema.columns
-            WHERE table_name = '${this.tableName}'
-            ORDER BY ordinal_position;
-          `
-        });
+      const { data: sampleData, error: sampleError } = await this.client
+        .from(this.tableName)
+        .select('*')
+        .limit(1);
 
-      // 如果 RPC 不可用，尝试直接查询一条记录来验证结构
-      if (structureError) {
-        this.logger.warn('⚠️  无法查询表结构详情（RPC 不可用），尝试基本验证...');
-
-        // 尝试查询一条记录来验证基本结构
-        const { data: sampleData, error: sampleError } = await this.client
-          .from(this.tableName)
-          .select('*')
-          .limit(1);
-
-        if (!sampleError && sampleData) {
-          result.tableStructure = {
-            note: '通过样本数据推断的字段',
-            fields: sampleData.length > 0 ? Object.keys(sampleData[0]) : []
-          };
-          this.logger.info('✅ 表结构基本验证通过');
-        }
-      } else {
-        result.tableStructure = structureData;
-        this.logger.info('✅ 表结构查询成功');
+      if (!sampleError && sampleData) {
+        result.tableStructure = {
+          fields: sampleData.length > 0 ? Object.keys(sampleData[0]) : []
+        };
+        this.logger.info('✅ 表结构验证通过');
+      } else if (sampleError) {
+        this.logger.warn('⚠️  无法查询表结构（表可能为空）');
       }
 
       // 3. 统计记录数
