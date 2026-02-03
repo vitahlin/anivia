@@ -654,8 +654,8 @@ program
             logger.info(`  Bucket Name: ${config.cloudflare.bucketName}`);
             logger.info(`  Endpoint: ${config.cloudflare.endpoint}`);
             logger.info(`  Public URL: ${config.cloudflare.publicUrl}`);
-            logger.info(`  Access Key ID: ${config.cloudflare.accessKeyId.substring(0, 8)}...`);
-            logger.info(`  Secret Access Key: ${config.cloudflare.secretAccessKey.substring(0, 8)}...`);
+            logger.info(`  Access Key ID: ${'*'.repeat(config.cloudflare.accessKeyId.length)}`);
+            logger.info(`  Secret Access Key: ${'*'.repeat(config.cloudflare.secretAccessKey.length)}`);
 
             logger.info('');
             logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

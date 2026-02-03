@@ -36,10 +36,10 @@ export const DEFAULT_CONFIG = {
     
     // R2 Bucket 名称（非敏感）
     // 示例: 'my-blog-images'
-    bucketName: process.env.CLOUDFLARE_BUCKET_NAME || 'zilean',
+    bucketName: process.env.CLOUDFLARE_BUCKET_NAME || 'sonder',
     
     // R2 公开访问 URL（非敏感）
-    publicUrl: process.env.CLOUDFLARE_PUBLIC_URL || 'https://zilean.vitah.me',
+    publicUrl: process.env.CLOUDFLARE_PUBLIC_URL || 'https://sonder.vitah.me',
     
     // R2 Endpoint（根据账户 ID 自动生成）
     get endpoint(): string {
