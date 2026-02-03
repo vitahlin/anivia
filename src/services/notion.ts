@@ -29,7 +29,7 @@ export class NotionService {
     const title = this.extractTitle(page);
     const createdTime = this.extractCreatedTime(page);
     const lastEditedTime = this.extractLastEditedTime(page);
-    const handler = this.extractHandler(page);
+    const slug = this.extractSlug(page);
     const published = this.extractPublished(page);
     const draft = this.extractDraft(page);
     const archived = this.extractArchived(page);
@@ -50,7 +50,7 @@ export class NotionService {
       content: '', // Will be filled by markdown converter
       createdTime,
       lastEditedTime,
-      handler,
+      slug,
       published,
       draft,
       archived,
@@ -60,7 +60,9 @@ export class NotionService {
       featuredImg,
       galleryImgs,
       properties,
-      images: [] // 图片将在后续从 Markdown 中提取
+      images: [], // 图片将在后续从 Markdown 中提取
+      postOrigin: 'notion', // NotionService 返回的数据默认来源为 notion
+      postType: '' // 默认为空字符串
     };
   }
 
@@ -156,10 +158,10 @@ export class NotionService {
     return page.last_edited_time || new Date().toISOString();
   }
 
-  private extractHandler(page: any): string {
+  private extractSlug(page: any): string {
     if ('properties' in page) {
       for (const [key, value] of Object.entries(page.properties)) {
-        if (key.toLowerCase() === 'handler' || key === '处理人') {
+        if (key.toLowerCase() === 'slug' || key.toLowerCase() === 'handler' || key === '处理人') {
           const prop = value as any;
           if (prop.type === 'rich_text' && prop.rich_text && prop.rich_text.length > 0) {
             return prop.rich_text.map((t: any) => t.plain_text).join('');

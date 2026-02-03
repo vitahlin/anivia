@@ -42,6 +42,43 @@ export class ObsidianSyncService {
       process.exit(1);
     }
 
+    // 验证 slug 字段（Obsidian 文章的唯一标识）
+    if (!frontMatter.slug) {
+      console.error(`❌ Obsidian 文章缺少必需的 slug 字段: ${filePath}`);
+      return {
+        success: false,
+        pageId: '',
+        message: `缺少必需的 slug 字段`,
+        imagesProcessed: 0,
+        skipped: true
+      };
+    }
+
+    // 检查是否需要更新（通过比较 last_edited_time）
+    const existingPage = await this.supabaseService.getPageByOrigin('obsidian', frontMatter.slug);
+
+    if (existingPage) {
+      // 获取文件的最后修改时间
+      const fileStats = fs.statSync(filePath);
+      const fileLastModified = fileStats.mtime;
+      const supabaseLastEdited = new Date(existingPage.last_edited_time);
+
+      if (fileLastModified.getTime() <= supabaseLastEdited.getTime()) {
+        this.logger.info(`⏭️  文件未更新，跳过同步 (File: ${fileLastModified.toISOString()}, Supabase: ${existingPage.last_edited_time})`);
+        return {
+          success: true,
+          pageId: existingPage.notion_page_id || '',
+          message: '文件未更新，跳过同步',
+          imagesProcessed: 0,
+          skipped: true
+        };
+      }
+
+      this.logger.info(`🔄 文件已更新，继续同步 (File: ${fileLastModified.toISOString()}, Supabase: ${existingPage.last_edited_time})`);
+    } else {
+      this.logger.info(`🆕 新文件，继续同步`);
+    }
+
     // Step 2: 提取本地图片
     this.logger.info('Step 2: 提取本地图片...');
     const allImages: AniviaImage[] = [];
@@ -150,9 +187,6 @@ export class ObsidianSyncService {
     featuredImage: AniviaImage | undefined,
     markdownImages: AniviaImage[]
   ): NotionPageData {
-    // 生成或使用现有的 notion_page_id
-    const notionPageId = frontMatter.notion_page_id || this.generatePageId();
-
     // 时间格式转换：yyyy-MM-dd HH:mm:ss → ISO 8601 with timezone
     const createdTime = this.convertToISO8601(frontMatter.created_time);
     const lastEditedTime = this.convertToISO8601(frontMatter.last_edited_time);
@@ -166,12 +200,12 @@ export class ObsidianSyncService {
     }
 
     return {
-      id: notionPageId,
+      id: '', // Obsidian 文章的 notion_page_id 为空字符串
       title: frontMatter.title,
       content: markdown,
       createdTime,
       lastEditedTime,
-      handler: frontMatter.handler || '',
+      slug: frontMatter.slug,
       published: frontMatter.published !== false, // 默认为 true
       draft: frontMatter.draft === true, // 默认为 false
       archived: frontMatter.archived === true, // 默认为 false
@@ -181,7 +215,9 @@ export class ObsidianSyncService {
       featuredImg: featuredImage?.cloudflareUrl || '',
       galleryImgs: [], // Obsidian 不支持组图
       properties: {},
-      images: markdownImages
+      images: markdownImages,
+      postOrigin: 'obsidian',
+      postType: frontMatter.postType || frontMatter.post_type || '' // 支持两种命名方式
     };
   }
 

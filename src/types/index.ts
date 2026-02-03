@@ -4,7 +4,7 @@ export interface NotionPageData {
   content: string; // Markdown content
   createdTime: string;
   lastEditedTime: string;
-  handler: string; // 处理人
+  slug: string; // URL 友好的唯一标识符
   published: boolean; // 是否发布
   draft: boolean; // 是否是草稿
   archived: boolean; // 是否归档
@@ -15,6 +15,8 @@ export interface NotionPageData {
   galleryImgs: string[]; // 组图
   properties: Record<string, any>;
   images: AniviaImage[];
+  postOrigin: 'notion' | 'obsidian'; // 文章来源
+  postType: string; // 文章类型
 }
 
 export type ImageType = 'markdown' | 'featured' | 'gallery';
@@ -38,7 +40,7 @@ export interface SupabasePageRecord {
   content: string;
   created_time: string;
   last_edited_time: string;
-  handler: string; // 处理人
+  slug: string; // URL 友好的唯一标识符
   published: boolean; // 是否发布
   draft: boolean; // 是否是草稿
   archived: boolean; // 是否归档
@@ -48,6 +50,8 @@ export interface SupabasePageRecord {
   featured_img: string; // 配图
   gallery_imgs: string[]; // 组图（数组）
   properties: Record<string, any>;
+  post_origin: 'notion' | 'obsidian'; // 文章来源
+  post_type: string; // 文章类型
   created_at?: string;
   updated_at?: string;
 }

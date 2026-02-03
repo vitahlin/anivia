@@ -154,7 +154,8 @@ export class SyncService {
         .map(img => img.cloudflareUrl)
         .filter((url): url is string => !!url),
       content: finalMarkdown,
-      images: processedMarkdownImages
+      images: processedMarkdownImages,
+      postOrigin: 'notion'
     };
 
     await this.supabaseService.syncPageData(finalPageData);

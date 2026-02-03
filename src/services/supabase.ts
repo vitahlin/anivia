@@ -5,7 +5,7 @@ import { Logger } from '../utils/logger';
 export class SupabaseService {
   private client: SupabaseClient;
   private logger: Logger;
-  private tableName = 'anivia_notion_page';
+  private tableName = 'sonder_post';
   private configTableName = 'anivia_config';
 
   constructor(config: SupabaseConfig, logger: Logger) {
@@ -14,19 +14,22 @@ export class SupabaseService {
   }
 
   async syncPageData(pageData: NotionPageData): Promise<void> {
-    // Remove dashes from page ID
+    // Remove dashes from page ID (for Notion pages)
     const cleanPageId = pageData.id.replace(/-/g, '');
 
-    // Check if page already exists
-    const existingPage = await this.getPageById(cleanPageId);
+    // Check if page already exists based on post_origin
+    const existingPage = await this.getPageByOrigin(
+      pageData.postOrigin,
+      pageData.postOrigin === 'notion' ? cleanPageId : pageData.slug
+    );
 
     const record: Partial<SupabasePageRecord> = {
-      notion_page_id: cleanPageId,
+      notion_page_id: pageData.postOrigin === 'notion' ? cleanPageId : '',
       title: pageData.title,
       content: pageData.content,
       created_time: pageData.createdTime,
       last_edited_time: pageData.lastEditedTime,
-      handler: pageData.handler,
+      slug: pageData.slug,
       published: pageData.published,
       draft: pageData.draft,
       archived: pageData.archived,
@@ -36,6 +39,8 @@ export class SupabaseService {
       featured_img: pageData.featuredImg,
       gallery_imgs: pageData.galleryImgs,
       properties: pageData.properties,
+      post_origin: pageData.postOrigin,
+      post_type: pageData.postType,
       updated_at: new Date().toISOString()
     };
 
@@ -49,24 +54,43 @@ export class SupabaseService {
     }
   }
 
-  async getPageById(notionPageId: string): Promise<SupabasePageRecord | null> {
-    const { data, error } = await this.client
+  /**
+   * 根据来源和标识符获取页面
+   * - Notion: 使用 notion_page_id
+   * - Obsidian: 使用 slug
+   */
+  async getPageByOrigin(postOrigin: 'notion' | 'obsidian', identifier: string): Promise<SupabasePageRecord | null> {
+    const query = this.client
       .from(this.tableName)
       .select('*')
-      .eq('notion_page_id', notionPageId)
-      .single();
+      .eq('post_origin', postOrigin);
+
+    if (postOrigin === 'notion') {
+      query.eq('notion_page_id', identifier);
+    } else {
+      query.eq('slug', identifier);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === 'PGRST116') {
         // No rows returned
         return null;
       }
-      console.error(`❌ 从 Supabase 获取页面失败: ${notionPageId}`);
+      console.error(`❌ 从 Supabase 获取页面失败 (${postOrigin}): ${identifier}`);
       console.error(error.message || String(error));
       process.exit(1);
     }
 
     return data;
+  }
+
+  /**
+   * 根据 Notion Page ID 获取页面（向后兼容）
+   */
+  async getPageById(notionPageId: string): Promise<SupabasePageRecord | null> {
+    return this.getPageByOrigin('notion', notionPageId);
   }
 
   private async insertPage(record: Partial<SupabasePageRecord>): Promise<SupabasePageRecord> {
@@ -222,7 +246,7 @@ export class SupabaseService {
         'content',
         'created_time',
         'last_edited_time',
-        'handler',
+        'slug',
         'published',
         'draft',
         'archived',
@@ -232,6 +256,8 @@ export class SupabaseService {
         'featured_img',
         'gallery_imgs',
         'properties',
+        'post_origin',
+        'post_type',
         'created_at',
         'updated_at'
       ];
