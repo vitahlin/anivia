@@ -461,174 +461,176 @@ program
 program
     .command('sync-notion-database-updated-pages')
     .description('Query and sync pages updated in a time range from Notion database to Supabase')
-    .argument('<databaseId>', 'Notion database ID')
+    .argument('<databaseIdOrUrl>', 'Notion database ID or page URL (database is also a page)')
     .argument('[startTime]', 'Start time in format yyyyMMddHHmmss (default: 20000101000000)')
     .argument('[endTime]', 'End time in format yyyyMMddHHmmss (default: current time)')
     .option('-v, --verbose', 'Enable verbose logging')
     .option('--ignore-update-time', 'Ignore update time check and force sync all pages', false)
-    .action(async (databaseId: string, startTime: string | undefined, endTime: string | undefined, options) => {
-        try {
-            const config = getConfig();
-            const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
+    .action(async (databaseIdOrUrl: string, startTime: string | undefined, endTime: string | undefined, options) => {
+        const config = getConfig();
+        const logger = new Logger(options.verbose ? 'debug' : config.logLevel);
 
-            // Parse time strings as Beijing time (UTC+8) and convert to UTC
-            const parseTime = (timeStr: string): Date => {
-                const year = parseInt(timeStr.substring(0, 4));
-                const month = parseInt(timeStr.substring(4, 6)) - 1;
-                const day = parseInt(timeStr.substring(6, 8));
-                const hour = parseInt(timeStr.substring(8, 10));
-                const minute = parseInt(timeStr.substring(10, 12));
-                const second = parseInt(timeStr.substring(12, 14));
+        // 从 URL 或 ID 中提取 database ID（解析失败会直接退出）
+        const databaseId = extractPageId(databaseIdOrUrl);
 
-                // 输入是北京时间（UTC+8），需要转换为 UTC 时间
-                // 北京时间减去 8 小时 = UTC 时间
-                const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
-                utcDate.setUTCHours(utcDate.getUTCHours() - 8);
-                return utcDate;
-            };
+        // Parse time strings as Beijing time (UTC+8) and convert to UTC
+        const parseTime = (timeStr: string): Date => {
+            const year = parseInt(timeStr.substring(0, 4));
+            const month = parseInt(timeStr.substring(4, 6)) - 1;
+            const day = parseInt(timeStr.substring(6, 8));
+            const hour = parseInt(timeStr.substring(8, 10));
+            const minute = parseInt(timeStr.substring(10, 12));
+            const second = parseInt(timeStr.substring(12, 14));
 
-            // 将 UTC 时间转换为北京时间字符串用于显示
-            const toBeijingTimeString = (date: Date): string => {
-                const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-                const year = beijingTime.getUTCFullYear();
-                const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
-                const day = String(beijingTime.getUTCDate()).padStart(2, '0');
-                const hour = String(beijingTime.getUTCHours()).padStart(2, '0');
-                const minute = String(beijingTime.getUTCMinutes()).padStart(2, '0');
-                const second = String(beijingTime.getUTCSeconds()).padStart(2, '0');
-                return `${year}-${month}-${day} ${hour}:${minute}:${second} (北京时间)`;
-            };
+            // 输入是北京时间（UTC+8），需要转换为 UTC 时间
+            // 北京时间减去 8 小时 = UTC 时间
+            const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+            utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+            return utcDate;
+        };
 
-            // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00 (北京时间)
-            const defaultStartTime = '20000101000000';
-            const start = parseTime(startTime || defaultStartTime);
+        // 将 UTC 时间转换为北京时间字符串用于显示
+        const toBeijingTimeString = (date: Date): string => {
+            const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+            const year = beijingTime.getUTCFullYear();
+            const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+            const hour = String(beijingTime.getUTCHours()).padStart(2, '0');
+            const minute = String(beijingTime.getUTCMinutes()).padStart(2, '0');
+            const second = String(beijingTime.getUTCSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hour}:${minute}:${second} (北京时间)`;
+        };
 
-            // 如果没有提供 endTime，默认使用当前北京时间
-            const end = endTime ? parseTime(endTime) : (() => {
-                const now = new Date();
-                // 获取当前 UTC 时间，加 8 小时得到北京时间
-                const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-                // 提取北京时间的年月日时分秒
-                const year = beijingTime.getUTCFullYear();
-                const month = beijingTime.getUTCMonth();
-                const day = beijingTime.getUTCDate();
-                const hour = beijingTime.getUTCHours();
-                const minute = beijingTime.getUTCMinutes();
-                const second = beijingTime.getUTCSeconds();
-                // 再转回 UTC
-                const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
-                utcDate.setUTCHours(utcDate.getUTCHours() - 8);
-                return utcDate;
-            })();
+        // 如果没有提供 startTime，默认使用 2000-01-01 00:00:00 (北京时间)
+        const defaultStartTime = '20000101000000';
+        const start = parseTime(startTime || defaultStartTime);
 
-            logger.info('🔍 查询并同步更新的页面...');
+        // 如果没有提供 endTime，默认使用当前北京时间
+        const end = endTime ? parseTime(endTime) : (() => {
+            const now = new Date();
+            // 获取当前 UTC 时间，加 8 小时得到北京时间
+            const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+            // 提取北京时间的年月日时分秒
+            const year = beijingTime.getUTCFullYear();
+            const month = beijingTime.getUTCMonth();
+            const day = beijingTime.getUTCDate();
+            const hour = beijingTime.getUTCHours();
+            const minute = beijingTime.getUTCMinutes();
+            const second = beijingTime.getUTCSeconds();
+            // 再转回 UTC
+            const utcDate = new Date(Date.UTC(year, month, day, hour, minute, second));
+            utcDate.setUTCHours(utcDate.getUTCHours() - 8);
+            return utcDate;
+        })();
+
+        logger.info('🔍 查询并同步更新的页面...');
+        if (databaseIdOrUrl !== databaseId) {
+            logger.info(`输入: ${databaseIdOrUrl}`);
+            logger.info(`提取的数据库 ID: ${databaseId}`);
+        } else {
             logger.info(`📊 数据库 ID: ${databaseId}`);
-            logger.info(`⏰ 开始时间: ${toBeijingTimeString(start)}`);
-            logger.info(`⏰ 结束时间: ${toBeijingTimeString(end)}`);
-            if (options.ignoreUpdateTime) {
-                logger.info(`⚠️  忽略更新时间检查: 是`);
-            }
+        }
+        logger.info(`⏰ 开始时间: ${toBeijingTimeString(start)}`);
+        logger.info(`⏰ 结束时间: ${toBeijingTimeString(end)}`);
+        if (options.ignoreUpdateTime) {
+            logger.info(`⚠️  忽略更新时间检查: 是`);
+        }
 
-            const notionService = new NotionService(config.notion, logger);
-            const pages = await notionService.queryDatabaseByTimeRange(
-                databaseId,
-                start.toISOString(),
-                end.toISOString()
-            );
+        const notionService = new NotionService(config.notion, logger);
+        const pages = await notionService.queryDatabaseByTimeRange(
+            databaseId,
+            start.toISOString(),
+            end.toISOString()
+        );
 
+        logger.info('');
+        logger.info(`✅ 找到 ${pages.length} 个更新的页面`);
+
+        let successCount = 0;
+        let skippedCount = 0;
+        let failCount = 0;
+        const errors: string[] = [];
+
+        if (pages.length === 0) {
+            logger.info('没有需要同步的页面');
+        } else {
+            logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            logger.info('🚀 开始同步页面到 Supabase...');
             logger.info('');
-            logger.info(`✅ 找到 ${pages.length} 个更新的页面`);
 
-            let successCount = 0;
-            let skippedCount = 0;
-            let failCount = 0;
-            const errors: string[] = [];
+            const syncService = new SyncService(config, logger);
 
-            if (pages.length === 0) {
-                logger.info('没有需要同步的页面');
-            } else {
-                logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                logger.info('🚀 开始同步页面到 Supabase...');
-                logger.info('');
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                logger.info(`[${i + 1}/${pages.length}] 同步: ${page.title || '(无标题)'}`);
+                logger.info(`   ID: ${page.id}`);
 
-                const syncService = new SyncService(config, logger);
-
-                for (let i = 0; i < pages.length; i++) {
-                    const page = pages[i];
-                    logger.info(`[${i + 1}/${pages.length}] 同步: ${page.title || '(无标题)'}`);
-                    logger.info(`   ID: ${page.id}`);
-
-                    try {
-                        const result = await syncService.syncPage(page.id, options.ignoreUpdateTime);
-                        if (result.success) {
-                            if (result.skipped) {
-                                skippedCount++;
-                                logger.info(`   ⏭️  跳过 (未更新)`);
-                            } else {
-                                successCount++;
-                                logger.info(`   ✅ 成功 (处理 ${result.imagesProcessed} 张图片)`);
-                            }
+                try {
+                    const result = await syncService.syncPage(page.id, options.ignoreUpdateTime);
+                    if (result.success) {
+                        if (result.skipped) {
+                            skippedCount++;
+                            logger.info(`   ⏭️  跳过 (未更新)`);
                         } else {
-                            failCount++;
-                            const errorMsg = `${page.title || page.id}: ${result.message}`;
-                            errors.push(errorMsg);
-                            logger.error(`   ❌ 失败: ${result.message}`);
+                            successCount++;
+                            logger.info(`   ✅ 成功 (处理 ${result.imagesProcessed} 张图片)`);
                         }
-                    } catch (error: any) {
+                    } else {
                         failCount++;
-                        const errorMsg = `${page.title || page.id}: ${error.message}`;
+                        const errorMsg = `${page.title || page.id}: ${result.message}`;
                         errors.push(errorMsg);
-                        logger.error(`   ❌ 异常: ${error.message}`);
+                        logger.error(`   ❌ 失败: ${result.message}`);
                     }
-
-                    logger.info('');
+                } catch (error: any) {
+                    failCount++;
+                    const errorMsg = `${page.title || page.id}: ${error.message}`;
+                    errors.push(errorMsg);
+                    logger.error(`   ❌ 异常: ${error.message}`);
                 }
 
-                logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-                logger.info('📊 同步完成统计:');
-                logger.info(`   总计: ${pages.length} 个页面`);
-                logger.info(`   ✅ 成功: ${successCount}`);
-                logger.info(`   ⏭️  跳过: ${skippedCount}`);
-                logger.info(`   ❌ 失败: ${failCount}`);
-
-                if (errors.length > 0) {
-                    logger.info('');
-                    logger.info('失败详情:');
-                    errors.forEach((error, index) => {
-                        logger.error(`   ${index + 1}. ${error}`);
-                    });
-                }
-
-                logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                logger.info('');
             }
 
-            // 更新配置表中的最后同步时间（防止 Supabase 数据库休眠）
-            // 无论是否有页面需要同步，都更新时间
-            const supabaseService = new SupabaseService(config.supabase, logger);
-            await supabaseService.updateLastSyncTime();
-            logger.info('✅ 已更新最后同步时间');
+            logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            logger.info('📊 同步完成统计:');
+            logger.info(`   总计: ${pages.length} 个页面`);
+            logger.info(`   ✅ 成功: ${successCount}`);
+            logger.info(`   ⏭️  跳过: ${skippedCount}`);
+            logger.info(`   ❌ 失败: ${failCount}`);
 
-            // 输出特殊标记，用于 GitHub Actions 检测是否有数据更新
-            // 使用新的 GitHub Actions 输出方式（Environment Files）
-            if (successCount > 0) {
-                // 检查是否在 GitHub Actions 环境中
-                if (process.env.GITHUB_OUTPUT) {
-                    fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_updates=true\n`);
-                }
-                logger.info('🔔 检测到数据更新，将触发通知');
-            } else {
-                if (process.env.GITHUB_OUTPUT) {
-                    fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_updates=false\n`);
-                }
-                logger.info('ℹ️  没有数据更新');
+            if (errors.length > 0) {
+                logger.info('');
+                logger.info('失败详情:');
+                errors.forEach((error, index) => {
+                    logger.error(`   ${index + 1}. ${error}`);
+                });
             }
 
-            if (failCount > 0) {
-                process.exit(1);
-            }
+            logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        }
 
-        } catch (error) {
-            console.error('❌ 同步失败:', error);
+        // 更新配置表中的最后同步时间（防止 Supabase 数据库休眠）
+        // 无论是否有页面需要同步，都更新时间
+        const supabaseService = new SupabaseService(config.supabase, logger);
+        await supabaseService.updateLastSyncTime();
+        logger.info('✅ 已更新最后同步时间');
+
+        // 输出特殊标记，用于 GitHub Actions 检测是否有数据更新
+        // 使用新的 GitHub Actions 输出方式（Environment Files）
+        if (successCount > 0) {
+            // 检查是否在 GitHub Actions 环境中
+            if (process.env.GITHUB_OUTPUT) {
+                fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_updates=true\n`);
+            }
+            logger.info('🔔 检测到数据更新，将触发通知');
+        } else {
+            if (process.env.GITHUB_OUTPUT) {
+                fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_updates=false\n`);
+            }
+            logger.info('ℹ️  没有数据更新');
+        }
+
+        if (failCount > 0) {
             process.exit(1);
         }
     });
