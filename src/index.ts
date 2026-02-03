@@ -77,11 +77,12 @@ program
 
 program
     .command('sync-obsidian')
-    .description('Sync an Obsidian Markdown file to Supabase')
-    .argument('<file-path>', 'Path to Obsidian Markdown file')
+    .description('Sync Obsidian Markdown file(s) to Supabase')
+    .argument('<path>', 'Path to Obsidian Markdown file or directory')
     .option('-v, --verbose', 'Enable verbose logging')
     .option('-d, --debug', 'Enable debug mode (shows detailed JSON logs)')
-    .action(async (filePath: string, options) => {
+    .option('-r, --recursive', 'Recursively sync all Markdown files in subdirectories', true)
+    .action(async (inputPath: string, options) => {
         // Load configuration
         const config = getConfig();
 
@@ -95,33 +96,118 @@ program
 
         const logger = new Logger(logLevel);
 
-        // 解析文件路径（支持相对路径和绝对路径）
-        const absolutePath = path.isAbsolute(filePath)
-            ? filePath
-            : path.resolve(process.cwd(), filePath);
+        // 解析路径（支持相对路径和绝对路径）
+        const absolutePath = path.isAbsolute(inputPath)
+            ? inputPath
+            : path.resolve(process.cwd(), inputPath);
 
-        logger.info('Starting Obsidian Markdown to Supabase sync...');
-        logger.info(`File: ${absolutePath}`);
-
-        // 检查文件是否存在
+        // 检查路径是否存在
         if (!fs.existsSync(absolutePath)) {
-            logger.error(`❌ File not found: ${absolutePath}`);
+            logger.error(`❌ Path not found: ${absolutePath}`);
             process.exit(1);
         }
+
+        // 获取所有需要同步的 Markdown 文件
+        const getMarkdownFiles = (dirPath: string, recursive: boolean): string[] => {
+            const files: string[] = [];
+            const stats = fs.statSync(dirPath);
+
+            if (stats.isFile()) {
+                // 如果是文件，检查是否是 .md 文件
+                if (dirPath.endsWith('.md')) {
+                    files.push(dirPath);
+                } else {
+                    logger.error(`❌ Not a Markdown file: ${dirPath}`);
+                    process.exit(1);
+                }
+            } else if (stats.isDirectory()) {
+                // 如果是目录，遍历所有文件
+                const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+
+                for (const entry of entries) {
+                    const fullPath = path.join(dirPath, entry.name);
+
+                    if (entry.isFile() && entry.name.endsWith('.md')) {
+                        files.push(fullPath);
+                    } else if (entry.isDirectory() && recursive) {
+                        // 递归处理子目录
+                        files.push(...getMarkdownFiles(fullPath, recursive));
+                    }
+                }
+            }
+
+            return files;
+        };
+
+        const markdownFiles = getMarkdownFiles(absolutePath, options.recursive);
+
+        if (markdownFiles.length === 0) {
+            logger.error(`❌ No Markdown files found in: ${absolutePath}`);
+            process.exit(1);
+        }
+
+        logger.info('Starting Obsidian Markdown to Supabase sync...');
+        logger.info(`Path: ${absolutePath}`);
+        logger.info(`Found ${markdownFiles.length} Markdown file(s)`);
+        logger.info(`Recursive: ${options.recursive ? 'Yes' : 'No'}`);
+        logger.info('');
 
         // Initialize Obsidian sync service
         const obsidianSyncService = new ObsidianSyncService(config, logger);
 
-        // Perform sync
-        const result = await obsidianSyncService.syncObsidianFile(absolutePath);
+        let successCount = 0;
+        let failCount = 0;
+        const errors: Array<{ file: string; error: string }> = [];
 
-        if (result.success) {
-            logger.info(`✅ 同步成功! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
-        } else {
-            logger.error(`❌ 同步失败! 页面: ${result.pageId}, 图片处理: ${result.imagesProcessed}`);
-            if (result.errors) {
-                result.errors.forEach(error => logger.error(`   - ${error}`));
+        // 同步所有文件
+        for (let i = 0; i < markdownFiles.length; i++) {
+            const file = markdownFiles[i];
+            const relativePath = path.relative(absolutePath, file);
+            const displayPath = relativePath || path.basename(file);
+
+            logger.info(`[${i + 1}/${markdownFiles.length}] Syncing: ${displayPath}`);
+
+            try {
+                const result = await obsidianSyncService.syncObsidianFile(file);
+
+                if (result.success) {
+                    successCount++;
+                    logger.info(`   ✅ Success (Page: ${result.pageId}, Images: ${result.imagesProcessed})`);
+                } else {
+                    failCount++;
+                    const errorMsg = result.errors?.join(', ') || 'Unknown error';
+                    errors.push({ file: displayPath, error: errorMsg });
+                    logger.error(`   ❌ Failed: ${errorMsg}`);
+                }
+            } catch (error: any) {
+                failCount++;
+                const errorMsg = error.message || String(error);
+                errors.push({ file: displayPath, error: errorMsg });
+                logger.error(`   ❌ Exception: ${errorMsg}`);
             }
+
+            logger.info('');
+        }
+
+        // 输出统计信息
+        logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        logger.info('📊 Sync Summary:');
+        logger.info(`   Total: ${markdownFiles.length} file(s)`);
+        logger.info(`   ✅ Success: ${successCount}`);
+        logger.info(`   ❌ Failed: ${failCount}`);
+
+        if (errors.length > 0) {
+            logger.info('');
+            logger.info('Failed files:');
+            errors.forEach((item, index) => {
+                logger.error(`   ${index + 1}. ${item.file}`);
+                logger.error(`      ${item.error}`);
+            });
+        }
+
+        logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+        if (failCount > 0) {
             process.exit(1);
         }
     });
