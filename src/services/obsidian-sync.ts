@@ -6,6 +6,7 @@ import { AppConfig, SyncResult, NotionPageData, AniviaImage } from '../types';
 import { Logger } from '../utils/logger';
 import path from 'path';
 import fs from 'fs';
+import { execSync } from 'child_process';
 
 export class ObsidianSyncService {
   private obsidianService: ObsidianService;
@@ -58,13 +59,13 @@ export class ObsidianSyncService {
     const existingPage = await this.supabaseService.getPageByOrigin('obsidian', frontMatter.slug);
 
     if (existingPage) {
-      // 获取文件的最后修改时间
-      const fileStats = fs.statSync(filePath);
-      const fileLastModified = fileStats.mtime;
+      // 使用 Git 获取文件的最后修改时间
+      const { lastEditedTime: gitLastEditedTime } = this.getGitTimestamps(filePath);
+      const gitLastModified = new Date(gitLastEditedTime);
       const supabaseLastEdited = new Date(existingPage.last_edited_time);
 
-      if (fileLastModified.getTime() <= supabaseLastEdited.getTime()) {
-        this.logger.info(`⏭️  文件未更新，跳过同步 (File: ${fileLastModified.toISOString()}, Supabase: ${existingPage.last_edited_time})`);
+      if (gitLastModified.getTime() <= supabaseLastEdited.getTime()) {
+        this.logger.info(`⏭️  文件未更新，跳过同步 (Git: ${gitLastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
         return {
           success: true,
           pageId: existingPage.notion_page_id || '',
@@ -74,7 +75,7 @@ export class ObsidianSyncService {
         };
       }
 
-      this.logger.info(`🔄 文件已更新，继续同步 (File: ${fileLastModified.toISOString()}, Supabase: ${existingPage.last_edited_time})`);
+      this.logger.info(`🔄 文件已更新，继续同步 (Git: ${gitLastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
     } else {
       this.logger.info(`🆕 新文件，继续同步`);
     }
@@ -127,7 +128,7 @@ export class ObsidianSyncService {
 
     // Step 5: 保存到 Supabase
     this.logger.info('💾 Step 5: 保存到 Supabase...');
-    const pageData = this.convertToNotionPageData(frontMatter, finalMarkdown, processedFeaturedImage, processedMarkdownImages);
+    const pageData = this.convertToNotionPageData(frontMatter, finalMarkdown, processedFeaturedImage, processedMarkdownImages, filePath);
     await this.supabaseService.syncPageData(pageData);
     this.logger.debug('✅ 成功保存到 Supabase');
 
@@ -176,7 +177,40 @@ export class ObsidianSyncService {
     return `featured_${pageId || 'obsidian'}_${timestamp}.${ext}`;
   }
 
+  /**
+   * 使用 Git 命令获取文件的创建时间和最后修改时间
+   * @param filePath 文件路径
+   * @returns { createdTime: string, lastEditedTime: string } ISO 8601 格式的时间戳
+   */
+  private getGitTimestamps(filePath: string): { createdTime: string; lastEditedTime: string } {
+    try {
+      // 获取文件的第一次提交时间（创建时间）
+      const createdTimeCmd = `git log --follow --format=%aI --reverse "${filePath}" | head -1`;
+      const createdTimeOutput = execSync(createdTimeCmd, { encoding: 'utf-8', cwd: path.dirname(filePath) }).trim();
 
+      // 获取文件的最后一次提交时间（更新时间）
+      const lastEditedTimeCmd = `git log --follow --format=%aI -1 "${filePath}"`;
+      const lastEditedTimeOutput = execSync(lastEditedTimeCmd, { encoding: 'utf-8', cwd: path.dirname(filePath) }).trim();
+
+      // 如果 Git 命令返回空（文件未提交），使用文件系统时间
+      const fileStats = fs.statSync(filePath);
+      const createdTime = createdTimeOutput || fileStats.birthtime.toISOString();
+      const lastEditedTime = lastEditedTimeOutput || fileStats.mtime.toISOString();
+
+      return {
+        createdTime,
+        lastEditedTime
+      };
+    } catch (error) {
+      // 如果 Git 命令失败（例如不在 Git 仓库中），使用文件系统时间
+      this.logger.warn(`⚠️  无法获取 Git 时间戳，使用文件系统时间: ${error}`);
+      const fileStats = fs.statSync(filePath);
+      return {
+        createdTime: fileStats.birthtime.toISOString(),
+        lastEditedTime: fileStats.mtime.toISOString()
+      };
+    }
+  }
 
   /**
    * 将 Front Matter 转换为 NotionPageData 格式
@@ -185,11 +219,11 @@ export class ObsidianSyncService {
     frontMatter: any,
     markdown: string,
     featuredImage: AniviaImage | undefined,
-    markdownImages: AniviaImage[]
+    markdownImages: AniviaImage[],
+    filePath: string
   ): NotionPageData {
-    // 时间格式转换：yyyy-MM-dd HH:mm:ss → ISO 8601 with timezone
-    const createdTime = this.convertToISO8601(frontMatter.created_time);
-    const lastEditedTime = this.convertToISO8601(frontMatter.last_edited_time);
+    // 使用 Git 命令获取文件的创建时间和更新时间
+    const { createdTime, lastEditedTime } = this.getGitTimestamps(filePath);
 
     // 处理 category 字段：支持单个字符串或数组
     let categories: string[] = [];
@@ -251,15 +285,4 @@ export class ObsidianSyncService {
     return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+08:00`;
   }
 
-  /**
-   * 生成新的页面 ID（32位十六进制字符串，类似 Notion ID）
-   */
-  private generatePageId(): string {
-    const chars = '0123456789abcdef';
-    let id = '';
-    for (let i = 0; i < 32; i++) {
-      id += chars[Math.floor(Math.random() * chars.length)];
-    }
-    return id;
-  }
 }

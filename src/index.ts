@@ -156,8 +156,6 @@ program
         const obsidianSyncService = new ObsidianSyncService(config, logger);
 
         let successCount = 0;
-        let failCount = 0;
-        const errors: Array<{ file: string; error: string }> = [];
 
         // 同步所有文件
         for (let i = 0; i < markdownFiles.length; i++) {
@@ -167,23 +165,20 @@ program
 
             logger.info(`[${i + 1}/${markdownFiles.length}] Syncing: ${displayPath}`);
 
-            try {
-                const result = await obsidianSyncService.syncObsidianFile(file);
+            const result = await obsidianSyncService.syncObsidianFile(file);
 
-                if (result.success) {
-                    successCount++;
-                    logger.info(`   ✅ Success (Page: ${result.pageId}, Images: ${result.imagesProcessed})`);
-                } else {
-                    failCount++;
-                    const errorMsg = result.errors?.join(', ') || 'Unknown error';
-                    errors.push({ file: displayPath, error: errorMsg });
-                    logger.error(`   ❌ Failed: ${errorMsg}`);
-                }
-            } catch (error: any) {
-                failCount++;
-                const errorMsg = error.message || String(error);
-                errors.push({ file: displayPath, error: errorMsg });
-                logger.error(`   ❌ Exception: ${errorMsg}`);
+            if (result.success) {
+                successCount++;
+                logger.info(`   ✅ Success (Page: ${result.pageId}, Images: ${result.imagesProcessed})`);
+            } else {
+                const errorMsg = result.errors?.join(', ') || result.message || 'Unknown error';
+                logger.error(`   ❌ Failed: ${errorMsg}`);
+                logger.error('');
+                logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                logger.error(`❌ Sync failed at file: ${displayPath}`);
+                logger.error(`   Error: ${errorMsg}`);
+                logger.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                process.exit(1);
             }
 
             logger.info('');
@@ -191,25 +186,9 @@ program
 
         // 输出统计信息
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        logger.info('📊 Sync Summary:');
-        logger.info(`   Total: ${markdownFiles.length} file(s)`);
-        logger.info(`   ✅ Success: ${successCount}`);
-        logger.info(`   ❌ Failed: ${failCount}`);
-
-        if (errors.length > 0) {
-            logger.info('');
-            logger.info('Failed files:');
-            errors.forEach((item, index) => {
-                logger.error(`   ${index + 1}. ${item.file}`);
-                logger.error(`      ${item.error}`);
-            });
-        }
-
+        logger.info('✅ All files synced successfully!');
+        logger.info(`   Total: ${successCount} file(s)`);
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-        if (failCount > 0) {
-            process.exit(1);
-        }
     });
 
 program
