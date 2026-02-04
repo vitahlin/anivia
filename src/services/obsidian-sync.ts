@@ -74,7 +74,7 @@ export class ObsidianSyncService {
     // Step 2: 提取本地图片
     const allImages: AniviaImage[] = [];
 
-    // 2.1 提取 featured_img
+    // 2.1 提取 featured_img（只处理本地图片）
     const featuredImgPath = this.obsidianService.extractFeaturedImage(frontMatter, filePath);
     if (featuredImgPath) {
       const featuredImage: AniviaImage = {
@@ -87,8 +87,6 @@ export class ObsidianSyncService {
       };
       allImages.push(featuredImage);
       this.logger.info(`提取到配图: ${path.basename(featuredImgPath)}`);
-    } else {
-      this.logger.info('页面没有配图');
     }
 
     // 2.2 提取 Markdown 中的图片
@@ -214,6 +212,31 @@ export class ObsidianSyncService {
     // 处理 title 字段：如果没有 title，使用文件名（不含扩展名）
     const title = frontMatter.title || path.basename(filePath, '.md');
 
+    // 处理布尔值字段：支持 true/false、True/False、"true"/"false" 等格式
+    const parseBooleanField = (value: any, defaultValue: boolean): boolean => {
+      if (value === undefined || value === null || value === '') {
+        return defaultValue;
+      }
+      // 处理字符串格式的布尔值
+      if (typeof value === 'string') {
+        const lowerValue = value.toLowerCase();
+        return lowerValue === 'true';
+      }
+      // 处理布尔值
+      return Boolean(value);
+    };
+
+    // 处理 featured_img 字段：优先使用上传到 Cloudflare 的图片
+    // 如果没有上传（可能是远程 URL），则使用原始 URL
+    let featuredImgUrl = '';
+    if (featuredImage?.cloudflareUrl) {
+      // 本地图片已上传到 Cloudflare
+      featuredImgUrl = featuredImage.cloudflareUrl;
+    } else if (featuredImage?.originalUrl) {
+      // 远程 URL，直接使用
+      featuredImgUrl = featuredImage.originalUrl;
+    }
+
     return {
       id: '', // Obsidian 文章的 notion_page_id 为空字符串
       title,
@@ -221,18 +244,18 @@ export class ObsidianSyncService {
       createdTime,
       lastEditedTime,
       slug: frontMatter.slug,
-      published: frontMatter.published !== false, // 默认为 true
-      draft: frontMatter.draft === true, // 默认为 false
-      archived: frontMatter.archived === true, // 默认为 false
+      published: parseBooleanField(frontMatter.published, false), // 默认为 false
+      draft: parseBooleanField(frontMatter.draft, false), // 默认为 false
+      archived: parseBooleanField(frontMatter.archived, false), // 默认为 false
       categories: Array.isArray(frontMatter.categories) ? frontMatter.categories : [],
       tags: Array.isArray(frontMatter.tags) ? frontMatter.tags : [],
       excerpt: frontMatter.excerpt || '',
-      featuredImg: featuredImage?.cloudflareUrl || '',
+      featuredImg: featuredImgUrl,
       galleryImgs: [], // Obsidian 不支持组图
       properties: {},
       images: markdownImages,
       postOrigin: 'obsidian',
-      postType: frontMatter.postType || frontMatter.post_type || '' // 支持两种命名方式
+      postType: frontMatter.post_type || frontMatter.postType || '' // 优先使用下划线命名
     };
   }
 
