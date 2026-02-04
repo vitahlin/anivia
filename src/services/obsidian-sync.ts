@@ -211,17 +211,12 @@ export class ObsidianSyncService {
     // 使用 Git 命令获取文件的创建时间和更新时间
     const { createdTime, lastEditedTime } = this.getGitTimestamps(filePath);
 
-    // 处理 category 字段：支持单个字符串或数组
-    let categories: string[] = [];
-    if (Array.isArray(frontMatter.category)) {
-      categories = frontMatter.category;
-    } else if (frontMatter.category) {
-      categories = [frontMatter.category];
-    }
+    // 处理 title 字段：如果没有 title，使用文件名（不含扩展名）
+    const title = frontMatter.title || path.basename(filePath, '.md');
 
     return {
       id: '', // Obsidian 文章的 notion_page_id 为空字符串
-      title: frontMatter.title,
+      title,
       content: markdown,
       createdTime,
       lastEditedTime,
@@ -229,7 +224,7 @@ export class ObsidianSyncService {
       published: frontMatter.published !== false, // 默认为 true
       draft: frontMatter.draft === true, // 默认为 false
       archived: frontMatter.archived === true, // 默认为 false
-      categories: categories,
+      categories: Array.isArray(frontMatter.categories) ? frontMatter.categories : [],
       tags: Array.isArray(frontMatter.tags) ? frontMatter.tags : [],
       excerpt: frontMatter.excerpt || '',
       featuredImg: featuredImage?.cloudflareUrl || '',
