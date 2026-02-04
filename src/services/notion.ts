@@ -21,7 +21,7 @@ export class NotionService {
       this.client.pages.retrieve({ page_id: pageId })
     );
 
-    this.logger.debug(`📄 页面原始数据:`);
+    this.logger.debug(`页面原始数据:`);
     this.logger.debug(JSON.stringify(page, null, 2));
 
     // Extract page properties
@@ -39,10 +39,7 @@ export class NotionService {
     const featuredImg = this.extractFeaturedImg(page);
     const galleryImgs = this.extractGallery(page);
 
-    this.logger.info(`页面信息解析完成:`);
-    this.logger.info(`   - ID: ${pageId}`);
-    this.logger.info(`   - 创建时间: ${createdTime}`);
-    this.logger.info(`   - 最后编辑: ${lastEditedTime}`);
+    this.logger.info(`页面信息: ID=${pageId}, 创建=${createdTime}, 最后编辑=${lastEditedTime}`);
 
     return {
       id: pageId,
@@ -67,7 +64,7 @@ export class NotionService {
   }
 
   async getPageBlocks(pageId: string): Promise<any[]> {
-    this.logger.info(`📄 开始获取页面块数据: ${pageId}`);
+    this.logger.debug(`开始获取页面块数据: ${pageId}`);
 
     // Fetch all blocks with pagination
     const allBlocks = await this.fetchBlocksWithPagination(pageId);
@@ -75,12 +72,12 @@ export class NotionService {
     // Recursively fetch child blocks
     for (const block of allBlocks) {
       if (block.has_children) {
-        this.logger.info(`🔄 获取子块: ${block.id}`);
+        this.logger.debug(`获取子块: ${block.id}`);
         block.children = await this.getPageBlocks(block.id);
       }
     }
 
-    this.logger.info(`✅ 页面块获取完成，总计 ${allBlocks.length} 个顶级块`);
+    this.logger.debug(`页面块获取完成，总计 ${allBlocks.length} 个顶级块`);
     return allBlocks;
   }
 

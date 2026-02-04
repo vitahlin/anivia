@@ -89,7 +89,7 @@ export class ImageProcessor {
       return resolvedPath;
     }
 
-    this.logger.warn(`⚠️ 图片文件不存在: ${obsidianPath} (解析为: ${resolvedPath})`);
+    this.logger.warn(`图片文件不存在: ${obsidianPath} (解析为: ${resolvedPath})`);
     return '';
   }
 
@@ -145,7 +145,7 @@ export class ImageProcessor {
     let totalReplacements = 0;
 
     if (imageMap.size === 0) {
-      this.logger.warn(`⚠️ 图片映射表为空，跳过 Obsidian 图片语法替换`);
+      this.logger.debug(`图片映射表为空，跳过 Obsidian 图片语法替换`);
       return finalMarkdown;
     }
 
@@ -195,7 +195,7 @@ export class ImageProcessor {
         }
         mappedCount++;
       } else {
-        this.logger.warn(`   ❌ 没有 Cloudflare URL: ${img.filename}`);
+        this.logger.warn(`没有 Cloudflare URL: ${img.filename}`);
       }
     });
 
@@ -210,7 +210,7 @@ export class ImageProcessor {
     let totalReplacements = 0;
 
     if (imageMap.size === 0) {
-      this.logger.warn(`⚠️ 图片映射表为空，跳过 URL 替换`);
+      this.logger.debug(`图片映射表为空，跳过 URL 替换`);
       return finalMarkdown;
     }
 
@@ -218,12 +218,12 @@ export class ImageProcessor {
       const escapedUrl = this.escapeRegExp(originalUrl);
       const regex = new RegExp(escapedUrl, 'g');
       const beforeCount = (finalMarkdown.match(regex) || []).length;
-      
+
       if (beforeCount > 0) {
         finalMarkdown = finalMarkdown.replace(regex, cloudflareUrl);
         totalReplacements += beforeCount;
       } else {
-        this.logger.warn(`⚠️ 未找到需要替换的 URL: ${originalUrl}`);
+        this.logger.debug(`未找到需要替换的 URL: ${originalUrl}`);
       }
     });
 

@@ -646,33 +646,33 @@ program
                     if (result.success) {
                         if (result.skipped) {
                             skippedCount++;
-                            logger.info(`   ⏭️  跳过 (未更新)`);
+                            logger.info(`   ${result.message}`);
                         } else {
                             successCount++;
-                            logger.info(`   ✅ 成功 (处理 ${result.imagesProcessed} 张图片)`);
+                            logger.info(`   成功 (处理 ${result.imagesProcessed} 张图片)`);
                         }
                     } else {
                         failCount++;
                         const errorMsg = `${page.title || page.id}: ${result.message}`;
                         errors.push(errorMsg);
-                        logger.error(`   ❌ 失败: ${result.message}`);
+                        logger.error(`   失败: ${result.message}`);
                     }
                 } catch (error: any) {
                     failCount++;
                     const errorMsg = `${page.title || page.id}: ${error.message}`;
                     errors.push(errorMsg);
-                    logger.error(`   ❌ 异常: ${error.message}`);
+                    logger.error(`   异常: ${error.message}`);
                 }
 
                 logger.info('');
             }
 
             logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            logger.info('📊 同步完成统计:');
+            logger.info('同步完成统计:');
             logger.info(`   总计: ${pages.length} 个页面`);
-            logger.info(`   ✅ 成功: ${successCount}`);
-            logger.info(`   ⏭️  跳过: ${skippedCount}`);
-            logger.info(`   ❌ 失败: ${failCount}`);
+            logger.info(`   成功: ${successCount}`);
+            logger.info(`   跳过: ${skippedCount}`);
+            logger.info(`   失败: ${failCount}`);
 
             if (errors.length > 0) {
                 logger.info('');

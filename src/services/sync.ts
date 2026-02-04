@@ -29,24 +29,21 @@ export class SyncService {
   async syncPage(pageId: string, ignoreUpdateTime: boolean = false): Promise<SyncResult> {
     this.logger.info(`开始同步页面: ${pageId}`);
     if (ignoreUpdateTime) {
-      this.logger.info(`⚠️  忽略更新时间检查，强制同步`);
+      this.logger.info(`忽略更新时间检查，强制同步`);
     }
     let imagesProcessed = 0;
 
-    // Step 0: 检查页面是否需要同步
-    this.logger.info('Step 0: 检查页面状态...');
     const cleanPageId = pageId.replace(/-/g, '');
 
-    // 先获取页面数据以检查 published 状态
+    // 获取页面数据
     const pageData: NotionPageData = await this.notionService.getPageData(pageId);
 
     // 检查 published 状态
     if (!pageData.published) {
-      this.logger.info(`⏭️  页面未发布 (published=false)，跳过同步`);
       return {
         success: true,
         pageId,
-        message: '页面未发布，跳过同步',
+        message: '跳过 (未发布)',
         imagesProcessed: 0,
         skipped: true
       };
@@ -61,38 +58,27 @@ export class SyncService {
       const supabaseLastEdited = new Date(existingPage.last_edited_time);
 
       if (notionLastEdited.getTime() <= supabaseLastEdited.getTime()) {
-        this.logger.info(`⏭️  页面未更新，跳过同步 (Notion: ${pageData.lastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
         return {
           success: true,
           pageId,
-          message: '页面未更新，跳过同步',
+          message: '跳过 (未更新)',
           imagesProcessed: 0,
           skipped: true
         };
       }
 
-      this.logger.info(`🔄 页面已更新，继续同步 (Notion: ${pageData.lastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
     } else if (existingPage && ignoreUpdateTime) {
-      this.logger.info(`🔄 忽略更新时间，强制同步已存在的页面`);
-    } else {
-      this.logger.info(`🆕 新页面，继续同步`);
+      this.logger.debug(`忽略更新时间，强制同步已存在的页面`);
     }
 
-    // Step 1: 获取 Notion 页面数据（已在 Step 0 中获取）
-    this.logger.info('Step 1: 使用已获取的 Notion 页面数据...');
-
-    // Step 2: 转换页面为 Markdown
-    this.logger.info('Step 2: 转换页面为 Markdown...');
+    // Step 1: 转换页面为 Markdown
+    this.logger.info('Step 1: 转换页面为 Markdown...');
     const rawMarkdown = await this.notionMarkdownConverter.convertPageToMarkdown(pageId);
 
-    // Step 3: 从 Markdown 中提取图片
-    this.logger.info('Step 3: 提取图片...');
+    // Step 2: 提取图片
     const imageUrls = this.imageProcessor.extractNotionImagesFromMarkdown(rawMarkdown);
     const markdownImages = this.imageProcessor.convertUrlsToAniviaImages(imageUrls, 'markdown');
-    this.logger.debug(`📸 从 Markdown 中提取到 ${markdownImages.length} 张图片`);
 
-    // Step 4: 提取配图和组图
-    this.logger.info('🖼️ Step 4: 提取配图和组图...');
     const allImages: AniviaImage[] = [...markdownImages];
 
     // 处理配图
@@ -106,9 +92,6 @@ export class SyncService {
         source: 'notion'
       };
       allImages.push(featuredImage);
-      this.logger.info(`提取到配图`);
-    } else {
-      this.logger.info('页面没有配图');
     }
 
     // 处理组图
@@ -124,13 +107,18 @@ export class SyncService {
         };
         allImages.push(galleryImage);
       });
-      this.logger.info(`提取到组图: ${pageData.galleryImgs.length} 张`);
-    } else {
-      this.logger.info('页面没有组图');
     }
 
-    // Step 5: 上传所有图片到 Cloudflare
-    this.logger.info('☁️ Step 5: 上传图片到 Cloudflare...');
+    const imageStats = {
+      markdown: markdownImages.length,
+      featured: pageData.featuredImg ? 1 : 0,
+      gallery: pageData.galleryImgs?.length || 0,
+      total: allImages.length
+    };
+    this.logger.info(`Step 2: 提取到 ${imageStats.total} 张图片 (内容: ${imageStats.markdown}, 配图: ${imageStats.featured}, 组图: ${imageStats.gallery})`);
+
+    // Step 3: 上传图片到 Cloudflare
+    this.logger.info('Step 3: 上传图片到 Cloudflare...');
     const processedImages = await this.uploadImagesToCloudflare(allImages);
 
     // 分离处理后的图片
@@ -140,13 +128,13 @@ export class SyncService {
 
     imagesProcessed = processedImages.filter(img => img.cloudflareUrl).length;
 
-    // Step 6: 替换 Markdown 中的图片 URL
-    this.logger.info('🔄 Step 6: 替换 Markdown 中的图片 URL...');
+    // Step 4: 替换 Markdown 中的图片 URL
+    this.logger.info('Step 4: 替换 Markdown 中的图片 URL...');
     const imageMap = this.imageProcessor.createImageMappings(processedMarkdownImages);
     const finalMarkdown = this.imageProcessor.replaceImageUrlsInMarkdown(rawMarkdown, imageMap);
 
-    // Step 7: 保存到 Supabase
-    this.logger.info('💾 Step 7: 保存到 Supabase...');
+    // Step 5: 保存到 Supabase
+    this.logger.info('Step 5: 保存到 Supabase...');
     const finalPageData: NotionPageData = {
       ...pageData,
       featuredImg: processedFeaturedImage?.cloudflareUrl || '',
@@ -159,12 +147,11 @@ export class SyncService {
     };
 
     await this.supabaseService.syncPageData(finalPageData);
-    this.logger.debug('✅ 成功保存到 Supabase');
 
     return {
         success: true,
         pageId,
-        message: `🎉 页面 ${pageId} 同步成功`,
+        message: `页面 ${pageId} 同步成功`,
         imagesProcessed
     };
   }
@@ -175,25 +162,12 @@ export class SyncService {
    */
   private async uploadImagesToCloudflare(images: AniviaImage[]): Promise<AniviaImage[]> {
     if (images.length === 0) {
-      this.logger.info('📭 没有图片需要上传');
+      this.logger.info('没有图片需要上传');
       return [];
     }
 
-    const markdownCount = images.filter(img => img.type === 'markdown').length;
-    const featuredCount = images.filter(img => img.type === 'featured').length;
-
-    this.logger.debug(`准备上传 ${images.length} 张图片 (Markdown: ${markdownCount}, 配图: ${featuredCount})`);
-
     // 上传所有图片
     const processedImages = await this.cloudflareService.processImages(images);
-
-    // 统计上传结果
-    const markdownSuccess = processedImages.filter(img => img.type === 'markdown' && img.cloudflareUrl).length;
-    const featuredSuccess = processedImages.filter(img => img.type === 'featured' && img.cloudflareUrl).length;
-    const gallerySuccess = processedImages.filter(img => img.type === 'gallery' && img.cloudflareUrl).length;
-    const galleryCount = images.filter(img => img.type === 'gallery').length;
-
-    this.logger.info(`✅ 图片上传完成: Markdown ${markdownSuccess}/${markdownCount}, 配图 ${featuredSuccess}/${featuredCount}, 组图 ${gallerySuccess}/${galleryCount}`);
 
     return processedImages;
   }

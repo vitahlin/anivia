@@ -51,7 +51,8 @@ export class CloudflareService {
   }
 
   async processImages(images: AniviaImage[]): Promise<AniviaImage[]> {
-    this.logger.info(`🚀 开始并行处理 ${images.length} 张图片...`);
+    let existingCount = 0;
+    let uploadedCount = 0;
 
     // 并行处理所有图片
     const processPromises = images.map(async (image, index) => {
@@ -72,7 +73,8 @@ export class CloudflareService {
         // Check if image already exists in Cloudflare
         const existingUrl = await this.checkImageExists(contentHash, image.type);
         if (existingUrl) {
-          this.logger.debug(`[${index + 1}/${images.length}] ✅ 图片已存在: ${image.filename} (${image.type}), 现有地址: ${existingUrl}`);
+          existingCount++;
+          this.logger.debug(`[${index + 1}/${images.length}] 图片已存在: ${image.filename} (${image.type}), 现有地址: ${existingUrl}`);
           return {
             ...imageWithHash,
             cloudflareUrl: existingUrl
@@ -80,14 +82,15 @@ export class CloudflareService {
         }
 
         const cloudflareUrl = await this.uploadImageBuffer(imageWithHash, originalBuffer);
-        this.logger.debug(`[${index + 1}/${images.length}] ✅ 图片上传成功: ${image.filename} -> ${cloudflareUrl}`);
+        uploadedCount++;
+        this.logger.debug(`[${index + 1}/${images.length}] 图片上传成功: ${image.filename} -> ${cloudflareUrl}`);
 
         return {
           ...imageWithHash,
           cloudflareUrl
         };
       } catch (error) {
-        this.logger.error(`[${index + 1}/${images.length}] ❌ 处理图片失败: ${image.filename}`, error);
+        this.logger.error(`[${index + 1}/${images.length}] 处理图片失败: ${image.filename}`, error);
         // 返回原始图片信息，但不包含 cloudflareUrl
         return image;
       }
@@ -97,7 +100,7 @@ export class CloudflareService {
     const processedImages = await Promise.all(processPromises);
 
     const successCount = processedImages.filter(img => img.cloudflareUrl).length;
-    this.logger.info(`✅ 图片处理完成: ${successCount}/${images.length} 成功`);
+    this.logger.info(`图片处理完成: 总数 ${images.length}, 已存在 ${existingCount}, 新上传 ${uploadedCount}, 成功 ${successCount}`);
 
     return processedImages;
   }
