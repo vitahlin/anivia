@@ -155,9 +155,9 @@ export class ExportService {
       content += `notion_page_id: ${page.notion_page_id}\n`;
       content += `created_time: ${this.formatBeijingTime(page.created_time)}\n`;
       content += `last_edited_time: ${this.formatBeijingTime(page.last_edited_time)}\n`;
-      content += `slug: ${page.slug || ''}\n`;
+      content += `slug: "${page.slug || ''}"\n`;
       content += `post_origin: ${page.post_origin}\n`;
-      content += `post_type: ${page.post_type || ''}\n`;
+      content += `post_type: "${page.post_type || ''}"\n`;
       content += `published: ${page.published}\n`;
       content += `draft: ${page.draft}\n`;
       content += `archived: ${page.archived}\n`;
