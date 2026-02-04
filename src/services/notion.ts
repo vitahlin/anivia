@@ -39,7 +39,10 @@ export class NotionService {
     const featuredImg = this.extractFeaturedImg(page);
     const galleryImgs = this.extractGallery(page);
 
-    this.logger.info(`页面信息: ID=${pageId}, 创建=${createdTime}, 最后编辑=${lastEditedTime}`);
+    this.logger.info(`页面信息:`);
+    this.logger.info(`   - Page ID: ${pageId}`);
+    this.logger.info(`   - 创建时间: ${createdTime}`);
+    this.logger.info(`   - 最后编辑: ${lastEditedTime}`);
 
     return {
       id: pageId,

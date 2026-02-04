@@ -638,8 +638,7 @@ program
 
             for (let i = 0; i < pages.length; i++) {
                 const page = pages[i];
-                logger.info(`[${i + 1}/${pages.length}] 同步: ${page.title || '(无标题)'}`);
-                logger.info(`   ID: ${page.id}`);
+                logger.info(`[${i + 1}/${pages.length}] ${page.title || '(无标题)'}`);
 
                 try {
                     const result = await syncService.syncPage(page.id, options.ignoreUpdateTime);

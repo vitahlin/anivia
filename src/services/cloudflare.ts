@@ -100,7 +100,10 @@ export class CloudflareService {
     const processedImages = await Promise.all(processPromises);
 
     const successCount = processedImages.filter(img => img.cloudflareUrl).length;
-    this.logger.info(`图片处理完成: 总数 ${images.length}, 已存在 ${existingCount}, 新上传 ${uploadedCount}, 成功 ${successCount}`);
+    this.logger.info(`   - 总数: ${images.length}`);
+    this.logger.info(`   - 已存在: ${existingCount}`);
+    this.logger.info(`   - 新上传: ${uploadedCount}`);
+    this.logger.info(`   - 成功: ${successCount}`);
 
     return processedImages;
   }

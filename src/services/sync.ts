@@ -27,9 +27,8 @@ export class SyncService {
   }
 
   async syncPage(pageId: string, ignoreUpdateTime: boolean = false): Promise<SyncResult> {
-    this.logger.info(`开始同步页面: ${pageId}`);
     if (ignoreUpdateTime) {
-      this.logger.info(`忽略更新时间检查，强制同步`);
+      this.logger.debug(`强制同步模式已启用`);
     }
     let imagesProcessed = 0;
 
@@ -115,7 +114,11 @@ export class SyncService {
       gallery: pageData.galleryImgs?.length || 0,
       total: allImages.length
     };
-    this.logger.info(`Step 2: 提取到 ${imageStats.total} 张图片 (内容: ${imageStats.markdown}, 配图: ${imageStats.featured}, 组图: ${imageStats.gallery})`);
+    this.logger.info(`Step 2: 提取图片`);
+    this.logger.info(`   - 总数: ${imageStats.total}`);
+    this.logger.info(`   - 内容: ${imageStats.markdown}`);
+    this.logger.info(`   - 配图: ${imageStats.featured}`);
+    this.logger.info(`   - 组图: ${imageStats.gallery}`);
 
     // Step 3: 上传图片到 Cloudflare
     this.logger.info('Step 3: 上传图片到 Cloudflare...');
