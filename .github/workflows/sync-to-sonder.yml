@@ -209,7 +209,6 @@ jobs:
         with:
           repository: vitahlin/ryze
           token: ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}
-          persist-credentials: false
           path: ryze-repo
 
       - name: Sync Obsidian from ryze
@@ -227,14 +226,27 @@ jobs:
           VAULT_PATH="ryze-repo"
 
           echo "Obsidian vault 路径: $VAULT_PATH"
+
+          # 检查路径是否存在
+          if [ ! -d "$VAULT_PATH" ]; then
+            echo "❌ 错误: 路径不存在: $VAULT_PATH"
+            echo "当前工作目录: $(pwd)"
+            echo "目录内容:"
+            ls -la
+            exit 1
+          fi
+
+          echo "✅ 路径存在"
+          echo "Markdown 文件数量: $(find "$VAULT_PATH" -name "*.md" | wc -l)"
           echo ""
 
           # 执行同步命令
-          SYNC_CMD="GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" bun run dist/index.js sync-obsidian \"$VAULT_PATH\" --recursive"
-          SYNC_OUTPUT=$(eval $SYNC_CMD 2>&1)
+          echo "执行命令: GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" bun run dist/index.js sync-obsidian \"$VAULT_PATH\" --recursive"
+          GITHUB_OUTPUT="$TEMP_OUTPUT_FILE" bun run dist/index.js sync-obsidian "$VAULT_PATH" --recursive
           SYNC_EXIT_CODE=$?
 
-          echo "$SYNC_OUTPUT"
+          echo ""
+          echo "命令退出码: $SYNC_EXIT_CODE"
 
           HAS_UPDATES=false
           if [ $SYNC_EXIT_CODE -eq 0 ]; then
