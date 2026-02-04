@@ -209,8 +209,7 @@ jobs:
         with:
           repository: vitahlin/ryze
           token: ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}
-          path: ryze
-          persist-credentials: false
+          path: ryze-repo
 
       - name: Sync Obsidian from ryze
         id: sync-obsidian
@@ -224,7 +223,7 @@ jobs:
           TEMP_OUTPUT_FILE=$(mktemp)
 
           # Obsidian vault 路径（ryze 仓库根目录）
-          VAULT_PATH="ryze"
+          VAULT_PATH="ryze-repo"
 
           echo "Obsidian vault 路径: $VAULT_PATH"
           echo ""
