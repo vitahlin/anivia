@@ -210,6 +210,7 @@ jobs:
           repository: vitahlin/ryze
           token: ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}
           path: ryze
+          persist-credentials: false
 
       - name: Sync Obsidian from ryze
         id: sync-obsidian
