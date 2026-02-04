@@ -535,7 +535,7 @@ program
     });
 
 program
-    .command('sync-notion-database-updated-pages')
+    .command('sync-notion-database')
     .description('Query and sync pages updated in a time range from Notion database to Supabase')
     .argument('<databaseIdOrUrl>', 'Notion database ID or page URL (database is also a page)')
     .argument('[startTime]', 'Start time in format yyyyMMddHHmmss (default: 20000101000000)')
