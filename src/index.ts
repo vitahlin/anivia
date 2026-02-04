@@ -83,8 +83,8 @@ program
     .option('-d, --debug', 'Enable debug mode (shows detailed JSON logs)')
     .option('-r, --recursive', 'Recursively sync all Markdown files in subdirectories', true)
     .action(async (inputPath: string, options) => {
-        // Load configuration
-        const config = getConfig();
+        // Load configuration (skip Notion validation for Obsidian sync)
+        const config = getConfig({ skipNotionValidation: true });
 
         // 确定日志级别：debug > verbose > config.logLevel
         let logLevel = config.logLevel;
