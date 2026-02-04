@@ -24,7 +24,6 @@ export class ObsidianSyncService {
   }
 
   async syncObsidianFile(filePath: string): Promise<SyncResult> {
-    this.logger.info(`开始同步 Obsidian 文件: ${filePath}`);
     let imagesProcessed = 0;
 
     // 验证文件存在
@@ -34,22 +33,15 @@ export class ObsidianSyncService {
     }
 
     // Step 1: 解析 Markdown 文件和 Front Matter
-    this.logger.info('Step 1: 解析 Markdown 文件...');
     const { frontMatter, content, rawContent } = this.obsidianService.parseMarkdownFile(filePath);
 
-    // 验证必需字段
-    if (!frontMatter.title) {
-      console.error('❌ Front Matter 缺少必需字段: title');
-      process.exit(1);
-    }
-
     // 验证 slug 字段（Obsidian 文章的唯一标识）
+    // 如果不存在 slug，则跳过该文件
     if (!frontMatter.slug) {
-      console.error(`❌ Obsidian 文章缺少必需的 slug 字段: ${filePath}`);
       return {
-        success: false,
+        success: true,
         pageId: '',
-        message: `缺少必需的 slug 字段`,
+        message: `跳过文件（缺少 slug 字段）`,
         imagesProcessed: 0,
         skipped: true
       };
@@ -65,11 +57,10 @@ export class ObsidianSyncService {
       const supabaseLastEdited = new Date(existingPage.last_edited_time);
 
       if (gitLastModified.getTime() <= supabaseLastEdited.getTime()) {
-        this.logger.info(`⏭️  文件未更新，跳过同步 (Git: ${gitLastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
         return {
           success: true,
           pageId: existingPage.notion_page_id || '',
-          message: '文件未更新，跳过同步',
+          message: `文件未更新，跳过同步 (Git: ${gitLastEditedTime}, Supabase: ${existingPage.last_edited_time})`,
           imagesProcessed: 0,
           skipped: true
         };
@@ -81,7 +72,6 @@ export class ObsidianSyncService {
     }
 
     // Step 2: 提取本地图片
-    this.logger.info('Step 2: 提取本地图片...');
     const allImages: AniviaImage[] = [];
 
     // 2.1 提取 featured_img
@@ -108,7 +98,6 @@ export class ObsidianSyncService {
     this.logger.debug(`📸 从 Markdown 中提取到 ${markdownImages.length} 张图片`);
 
     // Step 3: 上传图片到 Cloudflare
-    this.logger.info('☁️ Step 3: 上传图片到 Cloudflare...');
     const processedImages = await this.uploadImagesToCloudflare(allImages);
     imagesProcessed = processedImages.filter(img => img.cloudflareUrl).length;
 
@@ -117,7 +106,6 @@ export class ObsidianSyncService {
     const processedFeaturedImage = processedImages.find(img => img.type === 'featured');
 
     // Step 4: 替换图片路径
-    this.logger.info('🔄 Step 4: 替换 Markdown 中的图片路径...');
     const imageMap = new Map<string, string>();
     processedMarkdownImages.forEach(img => {
       if (img.cloudflareUrl) {
@@ -127,10 +115,8 @@ export class ObsidianSyncService {
     const finalMarkdown = this.imageProcessor.replaceObsidianImageSyntax(content, imageMap);
 
     // Step 5: 保存到 Supabase
-    this.logger.info('💾 Step 5: 保存到 Supabase...');
     const pageData = this.convertToNotionPageData(frontMatter, finalMarkdown, processedFeaturedImage, processedMarkdownImages, filePath);
     await this.supabaseService.syncPageData(pageData);
-    this.logger.debug('✅ 成功保存到 Supabase');
 
     const result: SyncResult = {
       success: true,

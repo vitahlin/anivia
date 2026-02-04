@@ -158,6 +158,8 @@ program
         let successCount = 0;
 
         // 同步所有文件
+        let skippedCount = 0;
+
         for (let i = 0; i < markdownFiles.length; i++) {
             const file = markdownFiles[i];
             const relativePath = path.relative(absolutePath, file);
@@ -168,8 +170,13 @@ program
             const result = await obsidianSyncService.syncObsidianFile(file);
 
             if (result.success) {
-                successCount++;
-                logger.info(`   ✅ Success (Page: ${result.pageId}, Images: ${result.imagesProcessed})`);
+                if (result.skipped) {
+                    skippedCount++;
+                    logger.info(`   ⏭️  Skipped: ${result.message}`);
+                } else {
+                    successCount++;
+                    logger.info(`   ✅ Success (Page: ${result.pageId}, Images: ${result.imagesProcessed})`);
+                }
             } else {
                 const errorMsg = result.errors?.join(', ') || result.message || 'Unknown error';
                 logger.error(`   ❌ Failed: ${errorMsg}`);
@@ -186,8 +193,12 @@ program
 
         // 输出统计信息
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        logger.info('✅ All files synced successfully!');
-        logger.info(`   Total: ${successCount} file(s)`);
+        logger.info('✅ All files processed successfully!');
+        logger.info(`   Total: ${markdownFiles.length} file(s)`);
+        logger.info(`   ✅ Synced: ${successCount}`);
+        if (skippedCount > 0) {
+            logger.info(`   ⏭️  Skipped: ${skippedCount}`);
+        }
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     });
 
