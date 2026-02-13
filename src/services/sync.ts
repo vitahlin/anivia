@@ -49,7 +49,14 @@ export class SyncService {
     }
 
     // 检查是否需要更新（除非 ignoreUpdateTime 为 true）
-    const existingPage = await this.supabaseService.getPageById(cleanPageId);
+    // 优先通过 slug 查询（因为 slug 是全局唯一的），如果没有 slug 则通过 notion_page_id 查询
+    let existingPage = null;
+    if (pageData.slug) {
+      existingPage = await this.supabaseService.getPageBySlug(pageData.slug);
+    }
+    if (!existingPage) {
+      existingPage = await this.supabaseService.getPageById(cleanPageId);
+    }
 
     if (existingPage && !ignoreUpdateTime) {
       // 获取 Notion 页面的最后编辑时间

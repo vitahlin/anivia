@@ -17,11 +17,22 @@ export class SupabaseService {
     // Remove dashes from page ID (for Notion pages)
     const cleanPageId = pageData.id.replace(/-/g, '');
 
-    // Check if page already exists based on post_origin
-    const existingPage = await this.getPageByOrigin(
-      pageData.postOrigin,
-      pageData.postOrigin === 'notion' ? cleanPageId : pageData.slug
-    );
+    // Check if page already exists
+    // Priority: 1. Check by slug (unique constraint), 2. Check by post_origin + identifier
+    let existingPage: SupabasePageRecord | null = null;
+
+    if (pageData.slug) {
+      // First, try to find by slug (since slug is unique across the table)
+      existingPage = await this.getPageBySlug(pageData.slug);
+    }
+
+    if (!existingPage) {
+      // If not found by slug, try to find by post_origin + identifier
+      existingPage = await this.getPageByOrigin(
+        pageData.postOrigin,
+        pageData.postOrigin === 'notion' ? cleanPageId : pageData.slug
+      );
+    }
 
     const record: Partial<SupabasePageRecord> = {
       notion_page_id: pageData.postOrigin === 'notion' ? cleanPageId : '',
@@ -79,6 +90,30 @@ export class SupabaseService {
         return null;
       }
       console.error(`❌ 从 Supabase 获取页面失败 (${postOrigin}): ${identifier}`);
+      console.error(error.message || String(error));
+      process.exit(1);
+    }
+
+    return data;
+  }
+
+  /**
+   * 根据 slug 获取页面
+   * 由于 slug 是全局唯一的，不需要指定 post_origin
+   */
+  async getPageBySlug(slug: string): Promise<SupabasePageRecord | null> {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .eq('slug', slug)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows returned
+        return null;
+      }
+      console.error(`❌ 从 Supabase 获取页面失败 (slug): ${slug}`);
       console.error(error.message || String(error));
       process.exit(1);
     }
