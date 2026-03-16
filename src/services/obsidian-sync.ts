@@ -163,6 +163,34 @@ export class ObsidianSyncService {
   }
 
   /**
+   * 解析 Obsidian 时间格式
+   * 支持格式：
+   * - 2026-03-02T20:41 (Obsidian 默认格式)
+   * - 2026-03-02T20:41:30
+   * - 2026-03-02T20:41:30Z
+   * - 2026-03-02T20:41:30+08:00
+   * @param timeStr 时间字符串
+   * @returns ISO 8601 格式的时间戳，解析失败返回 null
+   */
+  private parseObsidianTime(timeStr: string): string | null {
+    try {
+      // 处理 Obsidian 格式：2026-03-02T20:41（没有秒）
+      // 如果格式是 YYYY-MM-DDTHH:mm，添加秒数 :00
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(timeStr)) {
+        timeStr = timeStr + ':00';
+      }
+
+      const date = new Date(timeStr);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    } catch (error) {
+      this.logger.warn(`⚠️  无法解析时间: ${timeStr}`);
+    }
+    return null;
+  }
+
+  /**
    * 从 Obsidian 属性中获取创建时间
    * 优先使用 frontMatter 中的 created/created_time 字段，如果没有则使用当前时间
    * @param frontMatter Front Matter 对象
@@ -176,13 +204,9 @@ export class ObsidianSyncService {
     if (createdField) {
       // 如果是字符串，尝试解析
       if (typeof createdField === 'string') {
-        try {
-          const date = new Date(createdField);
-          if (!isNaN(date.getTime())) {
-            return date.toISOString();
-          }
-        } catch (error) {
-          this.logger.warn(`⚠️  无法解析创建时间: ${createdField}`);
+        const parsedTime = this.parseObsidianTime(createdField);
+        if (parsedTime) {
+          return parsedTime;
         }
       }
       // 如果是 Date 对象
@@ -209,13 +233,9 @@ export class ObsidianSyncService {
     if (updatedField) {
       // 如果是字符串，尝试解析
       if (typeof updatedField === 'string') {
-        try {
-          const date = new Date(updatedField);
-          if (!isNaN(date.getTime())) {
-            return date.toISOString();
-          }
-        } catch (error) {
-          this.logger.warn(`⚠️  无法解析更新时间: ${updatedField}`);
+        const parsedTime = this.parseObsidianTime(updatedField);
+        if (parsedTime) {
+          return parsedTime;
         }
       }
       // 如果是 Date 对象
