@@ -51,23 +51,23 @@ export class ObsidianSyncService {
     const existingPage = await this.supabaseService.getPageByOrigin('obsidian', frontMatter.slug);
 
     if (existingPage) {
-      // 使用 Git 获取文件的最后修改时间
-      const { lastEditedTime: gitLastEditedTime } = this.getGitTimestamps(filePath);
-      const gitLastModified = new Date(gitLastEditedTime);
+      // 从 Obsidian 属性中获取更新时间，如果没有则使用当前时间
+      const obsidianUpdatedTime = this.getObsidianUpdatedTime(frontMatter, filePath);
+      const obsidianLastModified = new Date(obsidianUpdatedTime);
       const supabaseLastEdited = new Date(existingPage.last_edited_time);
 
-      // 如果 Supabase 最后编辑时间 >= Git 最后修改时间，则跳过同步
-      if (supabaseLastEdited.getTime() >= gitLastModified.getTime()) {
+      // 如果 Supabase 最后编辑时间 >= Obsidian 更新时间，则跳过同步
+      if (supabaseLastEdited.getTime() >= obsidianLastModified.getTime()) {
         return {
           success: true,
           pageId: existingPage.notion_page_id || '',
-          message: `文件未更新，跳过同步 (Git: ${gitLastEditedTime}, Supabase: ${existingPage.last_edited_time})`,
+          message: `文件未更新，跳过同步 (Obsidian: ${obsidianUpdatedTime}, Supabase: ${existingPage.last_edited_time})`,
           imagesProcessed: 0,
           skipped: true
         };
       }
 
-      this.logger.info(`🔄 文件已更新，继续同步 (Git: ${gitLastEditedTime}, Supabase: ${existingPage.last_edited_time})`);
+      this.logger.info(`🔄 文件已更新，继续同步 (Obsidian: ${obsidianUpdatedTime}, Supabase: ${existingPage.last_edited_time})`);
     } else {
       this.logger.info(`🆕 新文件，继续同步`);
     }
@@ -163,9 +163,76 @@ export class ObsidianSyncService {
   }
 
   /**
+   * 从 Obsidian 属性中获取创建时间
+   * 优先使用 frontMatter 中的 created/created_time 字段，如果没有则使用当前时间
+   * @param frontMatter Front Matter 对象
+   * @param filePath 文件路径
+   * @returns ISO 8601 格式的时间戳
+   */
+  private getObsidianCreatedTime(frontMatter: any, filePath: string): string {
+    // 尝试从 frontMatter 中获取创建时间（支持多种字段名）
+    const createdField = frontMatter.created || frontMatter.created_time || frontMatter.createdTime || frontMatter.Created;
+
+    if (createdField) {
+      // 如果是字符串，尝试解析
+      if (typeof createdField === 'string') {
+        try {
+          const date = new Date(createdField);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString();
+          }
+        } catch (error) {
+          this.logger.warn(`⚠️  无法解析创建时间: ${createdField}`);
+        }
+      }
+      // 如果是 Date 对象
+      if (createdField instanceof Date) {
+        return createdField.toISOString();
+      }
+    }
+
+    // 如果没有找到有效的创建时间，使用当前时间
+    return new Date().toISOString();
+  }
+
+  /**
+   * 从 Obsidian 属性中获取更新时间
+   * 优先使用 frontMatter 中的 updated/last_edited_time 字段，如果没有则使用当前时间
+   * @param frontMatter Front Matter 对象
+   * @param filePath 文件路径
+   * @returns ISO 8601 格式的时间戳
+   */
+  private getObsidianUpdatedTime(frontMatter: any, filePath: string): string {
+    // 尝试从 frontMatter 中获取更新时间（支持多种字段名）
+    const updatedField = frontMatter.updated || frontMatter.last_edited_time || frontMatter.lastEditedTime || frontMatter.Updated || frontMatter.modified || frontMatter.Modified;
+
+    if (updatedField) {
+      // 如果是字符串，尝试解析
+      if (typeof updatedField === 'string') {
+        try {
+          const date = new Date(updatedField);
+          if (!isNaN(date.getTime())) {
+            return date.toISOString();
+          }
+        } catch (error) {
+          this.logger.warn(`⚠️  无法解析更新时间: ${updatedField}`);
+        }
+      }
+      // 如果是 Date 对象
+      if (updatedField instanceof Date) {
+        return updatedField.toISOString();
+      }
+    }
+
+    // 如果没有找到有效的更新时间，使用当前时间
+    return new Date().toISOString();
+  }
+
+  /**
    * 使用 Git 命令获取文件的创建时间和最后修改时间
    * @param filePath 文件路径
    * @returns { createdTime: string, lastEditedTime: string } ISO 8601 格式的时间戳
+   * @deprecated 已改为使用 Obsidian 属性中的时间字段
    */
   private getGitTimestamps(filePath: string): { createdTime: string; lastEditedTime: string } {
     try {
@@ -207,8 +274,9 @@ export class ObsidianSyncService {
     markdownImages: AniviaImage[],
     filePath: string
   ): NotionPageData {
-    // 使用 Git 命令获取文件的创建时间和更新时间
-    const { createdTime, lastEditedTime } = this.getGitTimestamps(filePath);
+    // 从 Obsidian 属性中获取创建时间和更新时间
+    const createdTime = this.getObsidianCreatedTime(frontMatter, filePath);
+    const lastEditedTime = this.getObsidianUpdatedTime(frontMatter, filePath);
 
     // 处理 title 字段：如果没有 title，使用文件名（不含扩展名）
     const title = frontMatter.title || path.basename(filePath, '.md');
