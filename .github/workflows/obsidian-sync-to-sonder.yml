@@ -1,0 +1,131 @@
+name: Sync Obsidian to Supabase
+
+on:
+  # schedule:
+  #   # 每 12 小时执行一次（UTC 时间：0:00 和 12:00）
+  #   - cron: '0 */4 * * *'
+
+  # push:
+  #   branches:
+  #     - main
+
+  workflow_dispatch:
+    # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SONDER_R2_ACCESS_KEY: ${{ secrets.SONDER_R2_ACCESS_KEY }}
+      SONDER_R2_SECRET_KEY: ${{ secrets.SONDER_R2_SECRET_KEY }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build project
+        run: bun run build
+
+      - name: Checkout ryze repository
+        uses: actions/checkout@v4
+        with:
+          repository: vitahlin/ryze
+          token: ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}
+          path: ryze-repo
+
+      - name: Sync Obsidian from ryze
+        id: sync-obsidian
+        run: |
+          echo "=========================================="
+          echo "开始同步 Obsidian 内容"
+          echo "=========================================="
+          echo ""
+
+          # 创建临时文件用于收集 has_updates 状态
+          TEMP_OUTPUT_FILE=$(mktemp)
+
+          # Obsidian vault 路径（ryze 仓库根目录）
+          VAULT_PATH="ryze-repo"
+
+          echo "Obsidian vault 路径: $VAULT_PATH"
+
+          # 检查路径是否存在
+          if [ ! -d "$VAULT_PATH" ]; then
+            echo "❌ 错误: 路径不存在: $VAULT_PATH"
+            echo "当前工作目录: $(pwd)"
+            echo "目录内容:"
+            ls -la
+            exit 1
+          fi
+
+          echo "✅ 路径存在"
+          echo "Markdown 文件数量: $(find "$VAULT_PATH" -name "*.md" | wc -l)"
+          echo ""
+
+          # 执行同步命令
+          echo "执行命令: GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" bun run dist/index.js sync-obsidian \"$VAULT_PATH\" --recursive"
+          GITHUB_OUTPUT="$TEMP_OUTPUT_FILE" bun run dist/index.js sync-obsidian "$VAULT_PATH" --recursive
+          SYNC_EXIT_CODE=$?
+
+          echo ""
+          echo "命令退出码: $SYNC_EXIT_CODE"
+
+          HAS_UPDATES=false
+          if [ $SYNC_EXIT_CODE -eq 0 ]; then
+            echo "✅ Obsidian 同步成功"
+
+            # 检查临时文件中是否有 has_updates=true
+            if grep -q "has_updates=true" "$TEMP_OUTPUT_FILE"; then
+              HAS_UPDATES=true
+              echo "🔔 检测到 Obsidian 有数据更新"
+            fi
+          else
+            echo "❌ Obsidian 同步失败"
+            rm -f "$TEMP_OUTPUT_FILE"
+            exit 1
+          fi
+
+          # 清理临时文件
+          rm -f "$TEMP_OUTPUT_FILE"
+
+          # 设置输出变量
+          echo "has_updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
+          echo "📊 Obsidian 同步最终状态: has_updates=$HAS_UPDATES"
+
+      - name: Notify sonder to sync posts (data updated)
+        if: steps.sync-obsidian.outputs.has_updates == 'true'
+        run: |
+          echo "🔔 检测到 Obsidian 数据更新，通知 sonder 项目同步文章..."
+          curl -X POST https://api.github.com/repos/vitahlin/sonder/dispatches \
+            -H "Authorization: token ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"event_type":"sync-posts"}'
+          echo "✅ 通知已发送"
+
+      - name: Notify sonder to sync posts (main push)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "🔔 检测到 main 分支有新提交，通知 sonder 项目同步文章..."
+          curl -X POST https://api.github.com/repos/vitahlin/sonder/dispatches \
+            -H "Authorization: token ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"event_type":"sync-posts"}'
+          echo "✅ 通知已发送"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Obsidian 同步失败，请检查日志"
+
