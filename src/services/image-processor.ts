@@ -67,22 +67,54 @@ export class ImageProcessor {
 
   /**
    * 解析 Obsidian 图片路径为绝对路径
-   * 支持相对路径、绝对路径
+   * 支持：
+   * - 相对路径：./image.png, ../image.png
+   * - Vault 绝对路径：/assets/image.png (相对于 vault 根目录)
+   * - 系统绝对路径：/Users/xxx/image.png
    */
   private resolveObsidianImagePath(obsidianPath: string, markdownFilePath: string): string {
     const path = require('path');
     const fs = require('fs');
 
-    // 如果已经是绝对路径，直接返回
-    if (path.isAbsolute(obsidianPath)) {
-      return fs.existsSync(obsidianPath) ? obsidianPath : '';
+    // 移除 Obsidian 语法的 [[ ]]
+    let imagePath = obsidianPath.trim();
+    if (imagePath.startsWith('[[') && imagePath.endsWith(']]')) {
+      imagePath = imagePath.slice(2, -2).trim();
     }
 
-    // 获取 Markdown 文件所在目录
-    const markdownDir = path.dirname(markdownFilePath);
+    // 如果以 / 开头，可能是 vault 内的绝对路径（如 /assets/image.png）
+    if (imagePath.startsWith('/')) {
+      const vaultRoot = this.findVaultRoot(markdownFilePath);
+      if (vaultRoot) {
+        // 移除开头的 /，然后拼接到 vault 根目录
+        const relativePath = imagePath.slice(1);
+        const resolvedPath = path.join(vaultRoot, relativePath);
 
-    // 解析相对路径
-    const resolvedPath = path.resolve(markdownDir, obsidianPath);
+        // 检查文件是否存在
+        if (fs.existsSync(resolvedPath)) {
+          return resolvedPath;
+        }
+
+        this.logger.debug(`尝试 vault 路径失败: ${resolvedPath}`);
+      }
+
+      // 如果找不到 vault 根目录，或文件不存在，尝试作为系统绝对路径
+      if (fs.existsSync(imagePath)) {
+        return imagePath;
+      }
+
+      this.logger.warn(`图片文件不存在: ${obsidianPath}`);
+      return '';
+    }
+
+    // 如果是系统绝对路径
+    if (path.isAbsolute(imagePath)) {
+      return fs.existsSync(imagePath) ? imagePath : '';
+    }
+
+    // 相对路径：相对于 Markdown 文件所在目录
+    const markdownDir = path.dirname(markdownFilePath);
+    const resolvedPath = path.resolve(markdownDir, imagePath);
 
     // 检查文件是否存在
     if (fs.existsSync(resolvedPath)) {
@@ -91,6 +123,51 @@ export class ImageProcessor {
 
     this.logger.warn(`图片文件不存在: ${obsidianPath} (解析为: ${resolvedPath})`);
     return '';
+  }
+
+  /**
+   * 查找 Obsidian vault 的根目录
+   * 通过向上查找包含 .obsidian 目录的父目录来确定 vault 根目录
+   */
+  private findVaultRoot(markdownFilePath: string): string | null {
+    const path = require('path');
+    const fs = require('fs');
+
+    let currentDir = path.dirname(markdownFilePath);
+    let previousDir = '';
+
+    // 向上查找，直到找到 .obsidian 目录或到达文件系统根目录
+    while (currentDir !== previousDir) {
+      // 检查是否存在 .obsidian 目录
+      const obsidianDir = path.join(currentDir, '.obsidian');
+      if (fs.existsSync(obsidianDir) && fs.statSync(obsidianDir).isDirectory()) {
+        this.logger.debug(`找到 vault 根目录: ${currentDir}`);
+        return currentDir;
+      }
+
+      previousDir = currentDir;
+      currentDir = path.dirname(currentDir);
+    }
+
+    // 如果没有找到 .obsidian 目录，尝试查找常见的 vault 目录名
+    let testDir = path.dirname(markdownFilePath);
+    let maxDepth = 5;
+
+    while (maxDepth > 0 && testDir !== path.dirname(testDir)) {
+      const parentDir = path.dirname(testDir);
+      const dirName = path.basename(parentDir);
+
+      if (dirName === 'ryze-repo' || dirName === 'vault' || dirName === 'obsidian' || dirName.includes('vault')) {
+        this.logger.debug(`使用推测的 vault 根目录: ${parentDir}`);
+        return parentDir;
+      }
+
+      testDir = parentDir;
+      maxDepth--;
+    }
+
+    this.logger.debug(`未找到 vault 根目录，使用 Markdown 文件所在目录: ${path.dirname(markdownFilePath)}`);
+    return path.dirname(markdownFilePath);
   }
 
   /**
