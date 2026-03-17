@@ -82,6 +82,7 @@ program
     .option('-v, --verbose', 'Enable verbose logging')
     .option('-d, --debug', 'Enable debug mode (shows detailed JSON logs)')
     .option('-r, --recursive', 'Recursively sync all Markdown files in subdirectories', true)
+    .option('-f, --force', 'Force sync all files, ignore update time check', false)
     .action(async (inputPath: string, options) => {
         // Load configuration (skip Notion validation for Obsidian sync)
         const config = getConfig({ skipNotionValidation: true });
@@ -150,6 +151,7 @@ program
         logger.info(`Path: ${absolutePath}`);
         logger.info(`Found ${markdownFiles.length} Markdown file(s)`);
         logger.info(`Recursive: ${options.recursive ? 'Yes' : 'No'}`);
+        logger.info(`Force sync: ${options.force ? 'Yes' : 'No'}`);
         logger.info('');
 
         // Initialize Obsidian sync service
@@ -167,7 +169,7 @@ program
 
             logger.info(`[${i + 1}/${markdownFiles.length}] Syncing: ${displayPath}`);
 
-            const result = await obsidianSyncService.syncObsidianFile(file);
+            const result = await obsidianSyncService.syncObsidianFile(file, options.force);
 
             if (result.success) {
                 if (result.skipped) {

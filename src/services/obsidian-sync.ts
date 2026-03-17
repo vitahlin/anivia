@@ -23,7 +23,7 @@ export class ObsidianSyncService {
     this.imageProcessor = new ImageProcessor(logger);
   }
 
-  async syncObsidianFile(filePath: string): Promise<SyncResult> {
+  async syncObsidianFile(filePath: string, force: boolean = false): Promise<SyncResult> {
     let imagesProcessed = 0;
 
     // 验证文件存在
@@ -48,9 +48,10 @@ export class ObsidianSyncService {
     }
 
     // 检查是否需要更新（通过比较 last_edited_time）
+    // 如果 force = true，则跳过时间检查
     const existingPage = await this.supabaseService.getPageByOrigin('obsidian', frontMatter.slug);
 
-    if (existingPage) {
+    if (existingPage && !force) {
       // 从 Obsidian 属性中获取更新时间，如果没有则使用当前时间
       const obsidianUpdatedTime = this.getObsidianUpdatedTime(frontMatter, filePath);
       const obsidianLastModified = new Date(obsidianUpdatedTime);
@@ -68,6 +69,8 @@ export class ObsidianSyncService {
       }
 
       this.logger.info(`🔄 文件已更新，继续同步 (Obsidian: ${obsidianUpdatedTime}, Supabase: ${existingPage.last_edited_time})`);
+    } else if (existingPage && force) {
+      this.logger.info(`🔄 强制同步模式，跳过时间检查`);
     } else {
       this.logger.info(`🆕 新文件，继续同步`);
     }
