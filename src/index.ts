@@ -202,6 +202,21 @@ program
             logger.info(`   ⏭️  Skipped: ${skippedCount}`);
         }
         logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+        // 输出特殊标记，用于 GitHub Actions 检测是否有数据更新
+        // 使用新的 GitHub Actions 输出方式（Environment Files）
+        if (successCount > 0) {
+            // 检查是否在 GitHub Actions 环境中
+            if (process.env.GITHUB_OUTPUT) {
+                fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_updates=true\n`);
+            }
+            logger.info('🔔 检测到数据更新，将触发通知');
+        } else {
+            if (process.env.GITHUB_OUTPUT) {
+                fs.appendFileSync(process.env.GITHUB_OUTPUT, `has_updates=false\n`);
+            }
+            logger.info('ℹ️  没有数据更新');
+        }
     });
 
 program
