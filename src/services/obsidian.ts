@@ -101,7 +101,8 @@ export class ObsidianService {
    * 解析 Obsidian 图片路径为绝对路径
    * 支持：
    * - Obsidian 语法：[[image.png]]
-   * - 相对路径：./image.png, ../image.png
+   * - Vault 相对路径：assets/image.png (相对于 vault 根目录，Obsidian 默认行为)
+   * - 相对路径：./image.png, ../image.png (相对于 Markdown 文件)
    * - Vault 绝对路径：/assets/image.png (相对于 vault 根目录)
    * - 系统绝对路径：/Users/xxx/image.png
    */
@@ -146,9 +147,29 @@ export class ObsidianService {
       return imagePath;
     }
 
-    // 相对路径：相对于 Markdown 文件所在目录
+    // 相对路径处理
+    // Obsidian 的默认行为：assets 目录下的图片总是相对于 vault 根目录
+    // 优先尝试从 vault 根目录解析
+    const vaultRoot = this.findVaultRoot(markdownFilePath);
+    if (vaultRoot) {
+      const vaultRelativePath = path.join(vaultRoot, imagePath);
+      if (fs.existsSync(vaultRelativePath)) {
+        this.logger.debug(`从 vault 根目录解析成功: ${vaultRelativePath}`);
+        return vaultRelativePath;
+      }
+    }
+
+    // 如果从 vault 根目录找不到，尝试相对于 Markdown 文件所在目录
     const markdownDir = path.dirname(markdownFilePath);
-    return path.resolve(markdownDir, imagePath);
+    const markdownRelativePath = path.resolve(markdownDir, imagePath);
+
+    if (fs.existsSync(markdownRelativePath)) {
+      this.logger.debug(`从 Markdown 目录解析成功: ${markdownRelativePath}`);
+      return markdownRelativePath;
+    }
+
+    // 都找不到，返回 null
+    return null;
   }
 
   /**

@@ -68,7 +68,8 @@ export class ImageProcessor {
   /**
    * 解析 Obsidian 图片路径为绝对路径
    * 支持：
-   * - 相对路径：./image.png, ../image.png
+   * - Vault 相对路径：assets/image.png (相对于 vault 根目录，Obsidian 默认行为)
+   * - 相对路径：./image.png, ../image.png (相对于 Markdown 文件)
    * - Vault 绝对路径：/assets/image.png (相对于 vault 根目录)
    * - 系统绝对路径：/Users/xxx/image.png
    */
@@ -112,16 +113,29 @@ export class ImageProcessor {
       return fs.existsSync(imagePath) ? imagePath : '';
     }
 
-    // 相对路径：相对于 Markdown 文件所在目录
-    const markdownDir = path.dirname(markdownFilePath);
-    const resolvedPath = path.resolve(markdownDir, imagePath);
-
-    // 检查文件是否存在
-    if (fs.existsSync(resolvedPath)) {
-      return resolvedPath;
+    // 相对路径处理
+    // Obsidian 的默认行为：assets 目录下的图片总是相对于 vault 根目录
+    // 优先尝试从 vault 根目录解析
+    const vaultRoot = this.findVaultRoot(markdownFilePath);
+    if (vaultRoot) {
+      const vaultRelativePath = path.join(vaultRoot, imagePath);
+      if (fs.existsSync(vaultRelativePath)) {
+        this.logger.debug(`从 vault 根目录解析成功: ${vaultRelativePath}`);
+        return vaultRelativePath;
+      }
     }
 
-    this.logger.warn(`图片文件不存在: ${obsidianPath} (解析为: ${resolvedPath})`);
+    // 如果从 vault 根目录找不到，尝试相对于 Markdown 文件所在目录
+    const markdownDir = path.dirname(markdownFilePath);
+    const markdownRelativePath = path.resolve(markdownDir, imagePath);
+
+    // 检查文件是否存在
+    if (fs.existsSync(markdownRelativePath)) {
+      this.logger.debug(`从 Markdown 目录解析成功: ${markdownRelativePath}`);
+      return markdownRelativePath;
+    }
+
+    this.logger.warn(`图片文件不存在: ${obsidianPath} (尝试了 vault: ${vaultRoot ? path.join(vaultRoot, imagePath) : 'N/A'}, markdown: ${markdownRelativePath})`);
     return '';
   }
 
