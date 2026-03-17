@@ -18,7 +18,12 @@ on:
         type: string
         default: '1'
       ignoreUpdateTime:
-        description: '忽略更新时间检查，强制同步所有页面'
+        description: '忽略更新时间检查，强制同步所有 Notion 页面'
+        required: false
+        type: boolean
+        default: false
+      force_sync_obsidian:
+        description: '强制同步所有 Obsidian 文件（忽略更新时间检查）'
         required: false
         type: boolean
         default: false
@@ -240,9 +245,20 @@ jobs:
           echo "Markdown 文件数量: $(find "$VAULT_PATH" -name "*.md" | wc -l)"
           echo ""
 
+          # 构建同步命令
+          SYNC_CMD="bun run dist/index.js sync-obsidian \"$VAULT_PATH\" --recursive"
+
+          # 如果启用了强制同步，添加 --force 参数
+          if [ "${{ github.event.inputs.force_sync_obsidian }}" == "true" ]; then
+            SYNC_CMD="$SYNC_CMD --force"
+            echo "⚠️  Obsidian 强制同步模式已启用"
+          fi
+
+          echo "执行命令: GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" $SYNC_CMD"
+          echo ""
+
           # 执行同步命令
-          echo "执行命令: GITHUB_OUTPUT=\"$TEMP_OUTPUT_FILE\" bun run dist/index.js sync-obsidian \"$VAULT_PATH\" --recursive"
-          GITHUB_OUTPUT="$TEMP_OUTPUT_FILE" bun run dist/index.js sync-obsidian "$VAULT_PATH" --recursive
+          GITHUB_OUTPUT="$TEMP_OUTPUT_FILE" eval $SYNC_CMD
           SYNC_EXIT_CODE=$?
 
           echo ""
