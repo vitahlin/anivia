@@ -56,8 +56,8 @@ export class ObsidianSyncService {
       const obsidianLastModified = new Date(obsidianUpdatedTime);
       const supabaseLastEdited = new Date(existingPage.last_edited_time);
 
-      // 如果 Supabase 最后编辑时间 >= Obsidian 更新时间，则跳过同步
-      if (supabaseLastEdited.getTime() >= obsidianLastModified.getTime()) {
+      // 如果两个时间相同，则跳过同步；如果不同，则继续同步
+      if (supabaseLastEdited.getTime() === obsidianLastModified.getTime()) {
         return {
           success: true,
           pageId: existingPage.notion_page_id || '',
