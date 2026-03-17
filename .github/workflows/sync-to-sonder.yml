@@ -311,7 +311,7 @@ jobs:
           curl -X POST https://api.github.com/repos/vitahlin/sonder/dispatches \
             -H "Authorization: token ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d '{"event_type":"sync-posts"}'
+            -d '{"event_type":"update_submodule_anivia"}'
           echo "✅ 通知已发送"
 
       - name: Notify sonder to sync posts (main push)
@@ -321,7 +321,7 @@ jobs:
           curl -X POST https://api.github.com/repos/vitahlin/sonder/dispatches \
             -H "Authorization: token ${{ secrets.SONDER_RYZE_ANIVIA_GIT_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            -d '{"event_type":"sync-posts"}'
+            -d '{"event_type":"update_submodule_anivia"}'
           echo "✅ 通知已发送"
 
       - name: Notify on failure
